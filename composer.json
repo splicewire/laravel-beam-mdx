@@ -1,6 +1,6 @@
 {
-    "name": "schemastud/laravel-beam-mdx",
-    "description": "The Laravel companion to @schemastud/beam-mdx: the server-side twin of the build-time draft gate. A catch-all content/essay route macro (Route::beamMdxShow) that 404s a draft slug outside the preview allowlist, a preview-only route middleware, the shared Mdx visibility gate, and a `beam-mdx:doctor` command asserting the MDX plane is wired and no draft is reachable in a production build.",
+    "name": "splicewire/laravel-beam-mdx",
+    "description": "The Laravel companion to @splicewire/beam-mdx: the server-side twin of the build-time draft gate. A catch-all content/essay route macro (Route::beamMdxShow) that 404s a draft slug outside the preview allowlist, a preview-only route middleware, the shared Mdx visibility gate, and a `beam-mdx:doctor` command asserting the MDX plane is wired and no draft is reachable in a production build.",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -18,18 +18,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Schemastud\\BeamMdx\\": "src/"
+            "Splicewire\\BeamMdx\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Schemastud\\BeamMdx\\Tests\\": "tests/"
+            "Splicewire\\BeamMdx\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Schemastud\\BeamMdx\\BeamMdxServiceProvider"
+                "Splicewire\\BeamMdx\\BeamMdxServiceProvider"
             ]
         }
     },

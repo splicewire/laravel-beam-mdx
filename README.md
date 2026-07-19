@@ -1,6 +1,6 @@
-# schemastud/laravel-beam-mdx
+# splicewire/laravel-beam-mdx
 
-The Laravel companion to `@schemastud/beam-mdx` — the server-side twin of the build-time draft
+The Laravel companion to `@splicewire/beam-mdx` — the server-side twin of the build-time draft
 gate. Where the npm plugin keeps drafts out of the *bundle*, this keeps a stray draft file out
 of the *route*, and ships a doctor that asserts neither leaked.
 
@@ -13,7 +13,7 @@ of the *route*, and ships a doctor that asserts neither leaked.
   - `Route::beamMdxPage('/about', 'content/show', 'about')` — a single gated named page.
 - **`beam-mdx.preview` middleware** — fence a whole always-draft surface (e.g. the broadcasts
   ledger) to preview-allowlisted environments.
-- **`Schemastud\BeamMdx\Mdx`** — the visibility gate (`isVisible`, `isDraft`, `previewAllowed`,
+- **`Splicewire\BeamMdx\Mdx`** — the visibility gate (`isVisible`, `isDraft`, `previewAllowed`,
   `draftNames`), reading `config/beam-mdx.php`.
 - **`php artisan beam-mdx:doctor`** — audits the plane against the locked decision: the plane is
   wired, the route gate hides every draft in a non-preview env, and no draft slug appears in the
@@ -29,8 +29,8 @@ plugin reads, so bundle and route can't disagree), `draftable_prefixes`, `conten
 
 ```jsonc
 // composer.json
-"require": { "schemastud/laravel-beam-mdx": "dev-main" },
-"repositories": [{ "type": "git", "url": "https://github.com/schemastud/laravel-beam-mdx.git" }]
+"require": { "splicewire/laravel-beam-mdx": "dev-main" },
+"repositories": [{ "type": "git", "url": "https://github.com/splicewire/laravel-beam-mdx.git" }]
 ```
 
 The service provider auto-discovers; publish the config with

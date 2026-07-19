@@ -13,7 +13,7 @@ return [
     | stays clean. Defaults to `local` so local authoring previews drafts out of the
     | box; set the env to an empty string to preview nowhere, or add staging.
     |
-    | This is the SERVER twin of the @schemastud/beam-mdx Vite plugin's build-time
+    | This is the SERVER twin of the @splicewire/beam-mdx Vite plugin's build-time
     | exclusion: both read the SAME `BEAM_MDX_PREVIEW_ENVS` env var, so the shipped
     | bundle and the route gate can never disagree on what is visible.
     |

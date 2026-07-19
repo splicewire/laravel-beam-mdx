@@ -1,13 +1,13 @@
 <?php
 
-namespace Schemastud\BeamMdx;
+namespace Splicewire\BeamMdx;
 
 use Illuminate\Routing\Router;
-use Schemastud\BeamMdx\Console\BeamMdxDoctorCommand;
-use Schemastud\BeamMdx\Http\Middleware\EnsurePreviewAllowed;
-use Schemastud\BeamMdx\Routing\ContentRoutes;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Splicewire\BeamMdx\Console\BeamMdxDoctorCommand;
+use Splicewire\BeamMdx\Http\Middleware\EnsurePreviewAllowed;
+use Splicewire\BeamMdx\Routing\ContentRoutes;
 
 class BeamMdxServiceProvider extends PackageServiceProvider
 {

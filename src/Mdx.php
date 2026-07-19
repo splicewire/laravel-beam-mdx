@@ -1,11 +1,11 @@
 <?php
 
-namespace Schemastud\BeamMdx;
+namespace Splicewire\BeamMdx;
 
 use Illuminate\Support\Str;
 
 /**
- * Server-side twin of the @schemastud/beam-mdx Vite plugin's draft gate. The plugin keeps
+ * Server-side twin of the @splicewire/beam-mdx Vite plugin's draft gate. The plugin keeps
  * drafts out of the *bundle*; this keeps a stray draft file out of the *route* —
  * belt-and-suspenders, so a direct URL can't reach a draft in a non-preview environment even
  * if its file is present. Both sides read the same `beam-mdx.preview_envs` allowlist (backed

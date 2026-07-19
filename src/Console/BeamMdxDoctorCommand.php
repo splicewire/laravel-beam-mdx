@@ -1,9 +1,9 @@
 <?php
 
-namespace Schemastud\BeamMdx\Console;
+namespace Splicewire\BeamMdx\Console;
 
 use Illuminate\Console\Command;
-use Schemastud\BeamMdx\Mdx;
+use Splicewire\BeamMdx\Mdx;
 
 /**
  * `php artisan beam-mdx:doctor` — audits the file-driven MDX content plane against the

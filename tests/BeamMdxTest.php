@@ -1,12 +1,12 @@
 <?php
 
-namespace Schemastud\BeamMdx\Tests;
+namespace Splicewire\BeamMdx\Tests;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use PHPUnit\Framework\Attributes\Test;
-use Schemastud\BeamMdx\Mdx;
+use Splicewire\BeamMdx\Mdx;
 
 class BeamMdxTest extends TestCase
 {
