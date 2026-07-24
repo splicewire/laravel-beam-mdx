@@ -15,6 +15,10 @@ use Splicewire\BeamMdx\Mdx;
  *  2. Bundle grep — no draft slug may appear in the built assets when the env isn't
  *     allowlisted (the build-time exclusion actually happened).
  *
+ * The same two checks run for the parallel **gated** axis (`access:` content), but
+ * unconditionally — gating is a confidentiality boundary, not a draft/preview one, so a
+ * gated slug must never be visible or bundled in *any* env (including a preview one).
+ *
  * Exits non-zero on any hard failure so CI / a deploy gate can block on it.
  */
 class BeamMdxDoctorCommand extends Command
@@ -51,6 +55,30 @@ class BeamMdxDoctorCommand extends Command
             $failed = true;
         }
 
+        $assets = (string) config('beam-mdx.build_assets_path');
+
+        // --- Gated axis: unconditional — a gated slug must never be visible or bundled ---
+        $gated = Mdx::gatedNames();
+        $reachableGated = array_values(array_filter($gated, fn (string $name) => Mdx::isVisible($name)));
+
+        if ($reachableGated === []) {
+            $this->components->info('Gate: all '.count($gated).' gated (access:) name(s) 404 on the public route.');
+        } else {
+            $this->components->error('Gate: gated name(s) publicly reachable: '.implode(', ', $reachableGated).'.');
+            $failed = true;
+        }
+
+        if ($assets !== '' && is_dir($assets)) {
+            $leakedGated = $this->slugsInBundle($assets, $gated);
+
+            if ($leakedGated === []) {
+                $this->components->info('Bundle: no gated slug found in the built assets.');
+            } else {
+                $this->components->error('Bundle: gated slug(s) present in the shipped build: '.implode(', ', $leakedGated).'.');
+                $failed = true;
+            }
+        }
+
         $drafts = Mdx::draftNames();
 
         // --- Preview env: drafts are intentionally visible, skip the leak asserts ------
@@ -77,8 +105,6 @@ class BeamMdxDoctorCommand extends Command
         }
 
         // --- Check 3: no draft slug leaked into the built bundle ----------------------
-        $assets = (string) config('beam-mdx.build_assets_path');
-
         if ($assets === '' || ! is_dir($assets)) {
             $this->components->warn(
                 'Bundle check skipped: no built assets at '.($assets ?: '(unset)').' — run `npm run build` to verify exclusion.',

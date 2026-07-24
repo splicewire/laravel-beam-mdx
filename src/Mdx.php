@@ -10,6 +10,12 @@ use Illuminate\Support\Str;
  * belt-and-suspenders, so a direct URL can't reach a draft in a non-preview environment even
  * if its file is present. Both sides read the same `beam-mdx.preview_envs` allowlist (backed
  * by the same env var), so they can never disagree on what is visible.
+ *
+ * The twin also carries the parallel **gated** axis: a file declaring an `access:`
+ * frontmatter key is a non-public content name — kept out of the public bundle (Vite) and
+ * off the public route (here), delivered only over the host's own authenticated gate route.
+ * "Gated" is deliberately **opaque**: the package holds the raw tokens and never interprets
+ * them (no RBAC, no notion of "guide"); the host reads {@see gate()} and decides.
  */
 class Mdx
 {
@@ -66,10 +72,78 @@ class Mdx
         return empty($frontmatter['datePublished']);
     }
 
+    /**
+     * A gated file declares an `access:` frontmatter key. It is a non-public content
+     * name — never in the public bundle, never on the public route — regardless of the
+     * preview allowlist (gating is a confidentiality boundary, not a draft/preview one).
+     */
+    public static function isGated(string $name): bool
+    {
+        return self::gate($name) !== null;
+    }
+
+    /**
+     * The opaque any-of `access:` tokens a file declares, or null when the file is absent
+     * or ungated. Tokens are returned verbatim for the host to interpret; a scalar becomes
+     * a one-element list, an inline `[a, b]` flow list is split. A present-but-empty
+     * `access:` returns `[]` (still gated — the host denies an empty any-of), never null.
+     *
+     * @return list<string>|null
+     */
+    public static function gate(string $name): ?array
+    {
+        $path = self::path($name);
+
+        if ($path === null) {
+            return null;
+        }
+
+        $frontmatter = self::frontmatter($path);
+
+        if (! array_key_exists('access', $frontmatter)) {
+            return null;
+        }
+
+        return self::tokens((string) $frontmatter['access']);
+    }
+
+    /**
+     * The opaque any-of `entitlement:` tokens a file declares (the parallel plan axis),
+     * or null when absent/ungated. Read alongside {@see gate()} by the host; wired now,
+     * unused by any content today.
+     *
+     * @return list<string>|null
+     */
+    public static function entitlement(string $name): ?array
+    {
+        $path = self::path($name);
+
+        if ($path === null) {
+            return null;
+        }
+
+        $frontmatter = self::frontmatter($path);
+
+        if (! array_key_exists('entitlement', $frontmatter)) {
+            return null;
+        }
+
+        return self::tokens((string) $frontmatter['entitlement']);
+    }
+
+    /** The flat scalar frontmatter of a content name (host-facing reader), or `[]` if absent. */
+    public static function fields(string $name): array
+    {
+        $path = self::path($name);
+
+        return $path === null ? [] : self::frontmatter($path);
+    }
+
     /** Should this content name resolve to a page in the current environment? */
     public static function isVisible(string $name): bool
     {
         return self::path($name) !== null
+            && ! self::isGated($name)
             && (self::previewAllowed() || ! self::isDraft($name));
     }
 
@@ -81,13 +155,36 @@ class Mdx
      */
     public static function draftNames(): array
     {
+        return array_values(array_filter(self::names(), self::isDraft(...)));
+    }
+
+    /**
+     * Every gated content name under the content root — the twin of {@see draftNames()}
+     * for the `access:` axis, so the doctor can prove no gated slug leaks into the bundle.
+     *
+     * @return list<string>
+     */
+    public static function gatedNames(): array
+    {
+        return array_values(array_filter(self::names(), self::isGated(...)));
+    }
+
+    /**
+     * Every content name under the content root (recursive scan of `.mdx` files), sorted.
+     * Optionally restricted to those under a name prefix (e.g. `docs/`). Host-facing: the
+     * enumerator a contributor walks to build a server-authoritative index.
+     *
+     * @return list<string>
+     */
+    public static function names(?string $under = null): array
+    {
         $root = rtrim((string) config('beam-mdx.content_path', resource_path('js/content')), '/');
 
         if (! is_dir($root)) {
             return [];
         }
 
-        $drafts = [];
+        $names = [];
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
         );
@@ -101,16 +198,39 @@ class Mdx
                 substr($file->getPathname(), strlen($root)),
                 '/',
             ));
-            $name = preg_replace('/\.mdx$/', '', $name);
+            $name = (string) preg_replace('/\.mdx$/', '', $name);
 
-            if (self::isDraft($name)) {
-                $drafts[] = $name;
+            if ($under !== null && ! Str::startsWith($name, $under)) {
+                continue;
             }
+
+            $names[] = $name;
         }
 
-        sort($drafts);
+        sort($names);
 
-        return $drafts;
+        return $names;
+    }
+
+    /**
+     * Split an `access:`/`entitlement:` frontmatter value into opaque tokens. A bare scalar
+     * (`root`) becomes a one-element list; an inline flow list (`[root, activity.view]`) is
+     * split on commas. Tokens are trimmed of surrounding quotes/space; empties are dropped.
+     *
+     * @return list<string>
+     */
+    private static function tokens(string $raw): array
+    {
+        $raw = trim($raw);
+
+        if (Str::startsWith($raw, '[') && Str::endsWith($raw, ']')) {
+            $raw = substr($raw, 1, -1);
+        }
+
+        return array_values(array_filter(
+            array_map(fn (string $t): string => trim($t, " \t\"'"), explode(',', $raw)),
+            fn (string $t): bool => $t !== '',
+        ));
     }
 
     /** Flat scalar frontmatter from the leading `---` block — only what the gate needs. */

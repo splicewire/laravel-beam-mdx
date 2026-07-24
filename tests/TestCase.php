@@ -36,6 +36,21 @@ class TestCase extends Orchestra
             "---\ntitle: About\n---\n\nbody\n",
         );
 
+        // The gated (access:) axis: one public doc, one root-gated, one any-of list.
+        @mkdir($root.'/docs', 0777, true);
+        file_put_contents(
+            $root.'/docs/open.mdx',
+            "---\ntitle: Open\n---\n\nbody\n",
+        );
+        file_put_contents(
+            $root.'/docs/guarded.mdx',
+            "---\ntitle: Guarded\naccess: root\n---\n\nbody\n",
+        );
+        file_put_contents(
+            $root.'/docs/guarded-list.mdx',
+            "---\ntitle: List\naccess: [support.view, billing.view]\n---\n\nbody\n",
+        );
+
         config(['beam-mdx.content_path' => $root]);
 
         return $root;

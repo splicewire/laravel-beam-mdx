@@ -71,6 +71,48 @@ class BeamMdxTest extends TestCase
     }
 
     #[Test]
+    public function it_treats_access_gated_content_as_non_public(): void
+    {
+        $this->seedContent();
+        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+
+        // Ungated docs are public and read back no gate.
+        $this->assertFalse(Mdx::isGated('docs/open'));
+        $this->assertNull(Mdx::gate('docs/open'));
+        $this->assertTrue(Mdx::isVisible('docs/open'));
+
+        // A gated file is non-public, and its opaque tokens read back verbatim.
+        $this->assertTrue(Mdx::isGated('docs/guarded'));
+        $this->assertSame(['root'], Mdx::gate('docs/guarded'));
+        $this->assertSame(['support.view', 'billing.view'], Mdx::gate('docs/guarded-list'));
+        $this->assertFalse(Mdx::isVisible('docs/guarded'), 'a gated file never resolves on the public route');
+
+        // Gating ignores the preview allowlist (it is a confidentiality boundary, not a draft).
+        config(['app.env' => 'staging', 'beam-mdx.preview_envs' => ['staging']]);
+        $this->assertFalse(Mdx::isVisible('docs/guarded'));
+
+        $this->assertSame(['docs/guarded', 'docs/guarded-list'], Mdx::gatedNames());
+    }
+
+    #[Test]
+    public function doctor_fails_when_a_gated_slug_leaks_into_the_bundle(): void
+    {
+        $root = $this->seedContent();
+        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+
+        $assets = $root.'/build/assets';
+        @mkdir($assets, 0777, true);
+        file_put_contents($assets.'/app-abc123.js', 'console.log("open guide");');
+        config(['beam-mdx.build_assets_path' => $assets]);
+
+        $this->assertSame(0, Artisan::call('beam-mdx:doctor'), 'doctor passes with no gated leak');
+
+        // Leak a gated slug into the bundle.
+        file_put_contents($assets.'/leak-ghi789.js', 'const s = "guarded";');
+        $this->assertSame(1, Artisan::call('beam-mdx:doctor'), 'doctor fails when a gated slug is in the bundle');
+    }
+
+    #[Test]
     public function doctor_passes_when_no_draft_leaks_and_fails_when_one_does(): void
     {
         $root = $this->seedContent();
