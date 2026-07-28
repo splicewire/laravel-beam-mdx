@@ -49,6 +49,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Authoring API root (ADR-0124 owner-tier seam)
+    |--------------------------------------------------------------------------
+    |
+    | The owner-tier URI prefix the HOST mounts the content-authoring endpoints
+    | at, resolved client-side by the `beam.content.*` route names. beam-mdx is a
+    | `Splicewire\Beam\*` package → the free `/beam` tier, domain `content`, so the
+    | default is `beam/content` (→ `GET|PUT /api/v1/beam/content/{name}`). The host
+    | reads this key when calling `TierRoutes::mount()`; overridable per-deploy via
+    | env without touching code. The package ships the default and the (policy-free)
+    | controller; the host owns the mount, the authorization policy, and the wire.
+    |
+    */
+    'api_root' => env('BEAM_MDX_API_ROOT', 'beam/content'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Built-bundle path
     |--------------------------------------------------------------------------
     |

@@ -45,6 +45,87 @@ class Mdx
     }
 
     /**
+     * Write raw MDX bytes to a content name's `.mdx` file, creating parent directories as
+     * needed, and return the absolute path written. This is the author-side twin of the read
+     * gate: it is deliberately **policy-free about *who*** (the host authorizes the caller),
+     * but owns two hard invariants no caller can bypass —
+     *
+     *  1. **Preview-env only.** Authoring is a preview/local capability, never production; a
+     *     write is a hard no-op (throws) when {@see previewAllowed()} is false, mirroring the
+     *     draft/gate read guards. Content is git-file-backed, not a production CMS store.
+     *  2. **Containment.** The name must resolve to a file *under* the content root — traversal
+     *     (`../`), absolute paths, NUL bytes, and symlink-escapes are rejected before any write.
+     *
+     * @throws \RuntimeException when previews are disallowed (production hard stop)
+     * @throws \InvalidArgumentException when the name escapes the content root
+     */
+    public static function write(string $name, string $raw): string
+    {
+        if (! self::previewAllowed()) {
+            throw new \RuntimeException('Content authoring is disabled outside preview environments.');
+        }
+
+        $target = self::writablePath($name);
+
+        $dir = \dirname($target);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0o755, true);
+        }
+
+        file_put_contents($target, $raw);
+
+        return $target;
+    }
+
+    /**
+     * Resolve a content name to the absolute `.mdx` path a write MUST land at, or throw when
+     * the name would escape the content root. Unlike {@see path()} this does not require the
+     * file to exist yet (a write may create it); it enforces *containment* only. Two layers:
+     * a syntactic reject of obvious escapes, then a canonicalised belt — the deepest existing
+     * ancestor of the target must resolve inside the (real) content root, so a symlinked
+     * subtree can't smuggle the write out.
+     */
+    private static function writablePath(string $name): string
+    {
+        if (
+            $name === ''
+            || str_contains($name, "\0")
+            || str_starts_with($name, '/')
+            || preg_match('#(^|/)\.\.(/|$)#', $name) === 1
+        ) {
+            throw new \InvalidArgumentException("Unsafe content name: {$name}");
+        }
+
+        $root = rtrim((string) config('beam-mdx.content_path', resource_path('js/content')), '/');
+        $canonicalRoot = realpath($root);
+
+        if ($canonicalRoot === false) {
+            throw new \RuntimeException("Content root does not exist: {$root}");
+        }
+
+        $target = $root.'/'.$name.'.mdx';
+
+        // Canonicalise the deepest already-existing ancestor and assert it sits under the root.
+        $ancestor = $target;
+        while (! file_exists($ancestor)) {
+            $parent = \dirname($ancestor);
+            if ($parent === $ancestor) {
+                break;
+            }
+            $ancestor = $parent;
+        }
+
+        $canonicalAncestor = realpath($ancestor);
+        if ($canonicalAncestor === false
+            || ! str_starts_with($canonicalAncestor.'/', $canonicalRoot.'/')
+        ) {
+            throw new \InvalidArgumentException("Content name escapes the content root: {$name}");
+        }
+
+        return $target;
+    }
+
+    /**
      * A file is a draft when it's a dated content type (essay/broadcast) carrying no
      * `datePublished`, or when it sets `draft: true`. Broadcasts never carry a date, so they
      * are structurally always draft. Non-dated pages (about, resume) are never drafts.
