@@ -1,9 +1,9 @@
 <?php
 
-namespace Splicewire\BeamMdx\Tests;
+namespace Splicewire\Beam\Mdx\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
-use Splicewire\BeamMdx\BeamMdxServiceProvider;
+use Splicewire\Beam\Mdx\BeamMdxServiceProvider;
 
 class TestCase extends Orchestra
 {

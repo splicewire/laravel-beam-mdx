@@ -13,7 +13,7 @@ of the *route*, and ships a doctor that asserts neither leaked.
   - `Route::beamMdxPage('/about', 'content/show', 'about')` — a single gated named page.
 - **`beam-mdx.preview` middleware** — fence a whole always-draft surface (e.g. the broadcasts
   ledger) to preview-allowlisted environments.
-- **`Splicewire\BeamMdx\Mdx`** — the visibility gate (`isVisible`, `isDraft`, `previewAllowed`,
+- **`Splicewire\Beam\Mdx\Mdx`** — the visibility gate (`isVisible`, `isDraft`, `previewAllowed`,
   `draftNames`), reading `config/beam-mdx.php`.
 - **`php artisan beam-mdx:doctor`** — audits the plane against the locked decision: the plane is
   wired, the route gate hides every draft in a non-preview env, and no draft slug appears in the

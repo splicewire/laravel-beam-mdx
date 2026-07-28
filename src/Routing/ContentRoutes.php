@@ -1,11 +1,11 @@
 <?php
 
-namespace Splicewire\BeamMdx\Routing;
+namespace Splicewire\Beam\Mdx\Routing;
 
 use Illuminate\Routing\Route as RouteInstance;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Splicewire\BeamMdx\Mdx;
+use Splicewire\Beam\Mdx\Mdx;
 
 /**
  * The catch-all content/essay route macros. Each satellite used to hand-write the same

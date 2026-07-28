@@ -1,6 +1,6 @@
 <?php
 
-namespace Splicewire\BeamMdx;
+namespace Splicewire\Beam\Mdx;
 
 use Illuminate\Support\Str;
 

@@ -1,10 +1,10 @@
 <?php
 
-namespace Splicewire\BeamMdx\Http\Middleware;
+namespace Splicewire\Beam\Mdx\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Splicewire\BeamMdx\Mdx;
+use Splicewire\Beam\Mdx\Mdx;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
