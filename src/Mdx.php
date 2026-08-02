@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
  * Server-side twin of the @splicewire/beam-mdx Vite plugin's draft gate. The plugin keeps
  * drafts out of the *bundle*; this keeps a stray draft file out of the *route* —
  * belt-and-suspenders, so a direct URL can't reach a draft in a non-preview environment even
- * if its file is present. Both sides read the same `beam-mdx.preview_envs` allowlist (backed
+ * if its file is present. Both sides read the same `beam.mdx.preview_envs` allowlist (backed
  * by the same env var), so they can never disagree on what is visible.
  *
  * The twin also carries the parallel **gated** axis: a file declaring an `access:`
@@ -22,7 +22,7 @@ class Mdx
     /** Content-name prefixes gated by a published date; anything else is always visible. */
     public static function draftablePrefixes(): array
     {
-        return (array) config('beam-mdx.draftable_prefixes', ['essays/', 'broadcasts/']);
+        return (array) config('beam.mdx.draftable_prefixes', ['essays/', 'broadcasts/']);
     }
 
     /** Is the current environment allowed to see drafts? */
@@ -30,7 +30,7 @@ class Mdx
     {
         return in_array(
             (string) config('app.env'),
-            (array) config('beam-mdx.preview_envs', []),
+            (array) config('beam.mdx.preview_envs', []),
             true,
         );
     }
@@ -38,7 +38,7 @@ class Mdx
     /** Absolute path to a content file by name (e.g. 'essays/foo'), or null if absent. */
     public static function path(string $name): ?string
     {
-        $root = rtrim((string) config('beam-mdx.content_path', resource_path('js/content')), '/');
+        $root = rtrim((string) config('beam.mdx.content_path', resource_path('js/content')), '/');
         $path = $root.'/'.$name.'.mdx';
 
         return is_file($path) ? $path : null;
@@ -96,7 +96,7 @@ class Mdx
             throw new \InvalidArgumentException("Unsafe content name: {$name}");
         }
 
-        $root = rtrim((string) config('beam-mdx.content_path', resource_path('js/content')), '/');
+        $root = rtrim((string) config('beam.mdx.content_path', resource_path('js/content')), '/');
         $canonicalRoot = realpath($root);
 
         if ($canonicalRoot === false) {
@@ -259,7 +259,7 @@ class Mdx
      */
     public static function names(?string $under = null): array
     {
-        $root = rtrim((string) config('beam-mdx.content_path', resource_path('js/content')), '/');
+        $root = rtrim((string) config('beam.mdx.content_path', resource_path('js/content')), '/');
 
         if (! is_dir($root)) {
             return [];

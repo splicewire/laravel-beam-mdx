@@ -32,7 +32,7 @@ class BeamMdxDoctorCommand extends Command
         $failed = false;
         $env = (string) config('app.env');
         $previewAllowed = Mdx::previewAllowed();
-        $contentPath = rtrim((string) config('beam-mdx.content_path'), '/');
+        $contentPath = rtrim((string) config('beam.mdx.content_path'), '/');
 
         // --- Check 1: the plane is wired ---------------------------------------------
         $mdxCount = 0;
@@ -55,7 +55,7 @@ class BeamMdxDoctorCommand extends Command
             $failed = true;
         }
 
-        $assets = (string) config('beam-mdx.build_assets_path');
+        $assets = (string) config('beam.mdx.build_assets_path');
 
         // --- Gated axis: unconditional — a gated slug must never be visible or bundled ---
         $gated = Mdx::gatedNames();
