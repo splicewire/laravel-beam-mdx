@@ -35,6 +35,20 @@ class BeamMdxServiceProvider extends PackageServiceProvider
                 class_alias($new, $old);
             }
         }
+
+        // Back-compat aliases for the anchor-strategy chunking machinery relocated down from
+        // Splicewire\Tower\Support\Anchors\* (recohere Lane A cluster 5). Guarded so a stale
+        // reference to the old FQCN still resolves during the transition.
+        foreach ([
+            'AnchorStrategy', 'AnchorStrategyFactory', 'PagedAnchorStrategy', 'PageMap',
+            'SectionedAnchorStrategy', 'SectionRangeFilter', 'SectionSplitter',
+        ] as $class) {
+            $new = "Splicewire\\Beam\\Mdx\\Support\\Anchors\\{$class}";
+            $old = "Splicewire\\Tower\\Support\\Anchors\\{$class}";
+            if (! class_exists($old, false) && ! interface_exists($old, false)) {
+                class_alias($new, $old);
+            }
+        }
     }
 
     public function packageBooted(): void
