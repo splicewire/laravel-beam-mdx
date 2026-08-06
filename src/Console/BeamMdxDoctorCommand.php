@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Splicewire\Beam\Mdx\Mdx;
 
 /**
- * `php artisan splicewire:beam:mdx-doctor` — audits the file-driven MDX content plane against the
+ * `php artisan splicewire:beam:mdx:doctor` — audits the file-driven MDX content plane against the
  * locked draft-visibility decision: the plane is wired, and no draft is reachable in a
  * production build. Two independent checks, mirroring the two enforcement mechanisms:
  *
@@ -23,7 +23,7 @@ use Splicewire\Beam\Mdx\Mdx;
  */
 class BeamMdxDoctorCommand extends Command
 {
-    protected $signature = 'splicewire:beam:mdx-doctor';
+    protected $signature = 'splicewire:beam:mdx:doctor';
 
     protected $description = 'Audit the MDX content plane: wired, and no draft reachable in a production build.';
 

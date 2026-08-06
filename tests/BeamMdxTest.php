@@ -105,11 +105,11 @@ class BeamMdxTest extends TestCase
         file_put_contents($assets.'/app-abc123.js', 'console.log("open guide");');
         config(['beam-mdx.build_assets_path' => $assets]);
 
-        $this->assertSame(0, Artisan::call('splicewire:beam:mdx-doctor'), 'doctor passes with no gated leak');
+        $this->assertSame(0, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor passes with no gated leak');
 
         // Leak a gated slug into the bundle.
         file_put_contents($assets.'/leak-ghi789.js', 'const s = "guarded";');
-        $this->assertSame(1, Artisan::call('splicewire:beam:mdx-doctor'), 'doctor fails when a gated slug is in the bundle');
+        $this->assertSame(1, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor fails when a gated slug is in the bundle');
     }
 
     #[Test]
@@ -127,10 +127,10 @@ class BeamMdxTest extends TestCase
         file_put_contents($assets.'/app-abc123.js', 'console.log("published essay");');
         config(['beam-mdx.build_assets_path' => $assets]);
 
-        $this->assertSame(0, Artisan::call('splicewire:beam:mdx-doctor'), 'doctor passes with no leak');
+        $this->assertSame(0, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor passes with no leak');
 
         // Now leak a draft slug into the bundle.
         file_put_contents($assets.'/leak-def456.js', 'const s = "draft-no-date";');
-        $this->assertSame(1, Artisan::call('splicewire:beam:mdx-doctor'), 'doctor fails when a draft slug is in the bundle');
+        $this->assertSame(1, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor fails when a draft slug is in the bundle');
     }
 }

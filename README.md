@@ -15,7 +15,7 @@ of the *route*, and ships a doctor that asserts neither leaked.
   ledger) to preview-allowlisted environments.
 - **`Splicewire\Beam\Mdx\Mdx`** — the visibility gate (`isVisible`, `isDraft`, `previewAllowed`,
   `draftNames`), reading `config/beam-mdx.php`.
-- **`php artisan splicewire:beam:mdx-doctor`** — audits the plane against the locked decision: the plane is
+- **`php artisan splicewire:beam:mdx:doctor`** — audits the plane against the locked decision: the plane is
   wired, the route gate hides every draft in a non-preview env, and no draft slug appears in the
   built assets. Exits non-zero on any failure so CI / a deploy gate can block on it.
 
