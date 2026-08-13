@@ -133,4 +133,45 @@ class BeamMdxTest extends TestCase
         file_put_contents($assets.'/leak-def456.js', 'const s = "draft-no-date";');
         $this->assertSame(1, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor fails when a draft slug is in the bundle');
     }
+
+    // --- --floor (particle-doctrine-followups ticket 08): the skipped-bundle-check WARN is the
+    // --- only non-pass finding, so the floor is the only variable between these two runs.
+
+    /** One published (dated, undrafted, ungated) essay, keyed exactly as the doctor reads config. */
+    private function seedPublishedOnlyPlane(): void
+    {
+        $root = sys_get_temp_dir().'/beam-mdx-floor-'.uniqid();
+        @mkdir($root.'/essays', 0777, true);
+        file_put_contents(
+            $root.'/essays/published.mdx',
+            "---\ntitle: Published\ndatePublished: '2026-01-01'\n---\n\nbody\n",
+        );
+
+        config([
+            'app.env' => 'production',
+            'beam.mdx.content_path' => $root,
+            'beam.mdx.preview_envs' => [],
+            'beam.mdx.build_assets_path' => '',
+        ]);
+    }
+
+    #[Test]
+    public function doctor_passes_a_skipped_bundle_check_at_the_default_fail_floor(): void
+    {
+        $this->seedPublishedOnlyPlane();
+
+        $this->assertSame(0, Artisan::call('splicewire:beam:mdx:doctor'), 'a warn-only run passes at the fail floor');
+    }
+
+    #[Test]
+    public function doctor_fails_a_skipped_bundle_check_at_a_warn_floor(): void
+    {
+        $this->seedPublishedOnlyPlane();
+
+        $this->assertSame(
+            1,
+            Artisan::call('splicewire:beam:mdx:doctor', ['--floor' => 'warn']),
+            'the same warn-only run gate-fails at --floor=warn',
+        );
+    }
 }
