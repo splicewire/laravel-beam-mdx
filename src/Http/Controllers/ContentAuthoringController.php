@@ -23,7 +23,12 @@ use Splicewire\Beam\Mdx\Mdx;
  */
 class ContentAuthoringController
 {
-    /** Raw current source of a content name (for seeding an editor), or 404 when absent. */
+    /**
+     * Show authored content
+     *
+     * The raw current source behind a content name, for seeding an editor. 404 when no content is
+     * authored under that name.
+     */
     public function show(Request $request, string $name): Response
     {
         $path = Mdx::path($name);
@@ -37,9 +42,12 @@ class ContentAuthoringController
     }
 
     /**
-     * Persist an edited body to a content name's `.mdx`. Accepts either a raw `text/markdown`
-     * request body (the primitive transport) or a JSON `{ "source": "…" }` envelope. Returns
-     * 204 on success; the containment + preview-env guards live in {@see Mdx::write()}.
+     * Update authored content
+     *
+     * Save an edited body back to a content name. Send it either as a raw `text/markdown` request body
+     * or as JSON `{ "source": "…" }`.
+     *
+     * Returns 204 on success.
      */
     public function update(Request $request, string $name): Response
     {
