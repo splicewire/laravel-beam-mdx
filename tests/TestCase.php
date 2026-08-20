@@ -51,7 +51,7 @@ class TestCase extends Orchestra
             "---\ntitle: List\naccess: [support.view, billing.view]\n---\n\nbody\n",
         );
 
-        config(['beam-mdx.content_path' => $root]);
+        config(['beam.mdx.content_path' => $root]);
 
         return $root;
     }

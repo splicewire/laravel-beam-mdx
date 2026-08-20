@@ -31,12 +31,12 @@ class BeamMdxTest extends TestCase
     {
         $this->seedContent();
 
-        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+        config(['app.env' => 'production', 'beam.mdx.preview_envs' => []]);
         $this->assertTrue(Mdx::isVisible('essays/published'));
         $this->assertFalse(Mdx::isVisible('essays/draft-no-date'), 'draft hidden outside allowlist');
         $this->assertFalse(Mdx::isVisible('broadcasts/launch'));
 
-        config(['app.env' => 'staging', 'beam-mdx.preview_envs' => ['local', 'staging']]);
+        config(['app.env' => 'staging', 'beam.mdx.preview_envs' => ['local', 'staging']]);
         $this->assertTrue(Mdx::isVisible('essays/draft-no-date'), 'draft visible when env allowlisted');
         $this->assertTrue(Mdx::isVisible('broadcasts/launch'));
     }
@@ -45,7 +45,7 @@ class BeamMdxTest extends TestCase
     public function the_show_macro_404s_a_draft_but_serves_a_published_slug(): void
     {
         $this->seedContent();
-        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+        config(['app.env' => 'production', 'beam.mdx.preview_envs' => []]);
 
         Route::beamMdxShow('essays', 'content/show')->name('essays.show');
 
@@ -63,10 +63,10 @@ class BeamMdxTest extends TestCase
 
         Route::middleware('beam-mdx.preview')->get('/broadcasts', fn () => Inertia::render('broadcasts/index'));
 
-        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+        config(['app.env' => 'production', 'beam.mdx.preview_envs' => []]);
         $this->get('/broadcasts', ['X-Inertia' => 'true'])->assertNotFound();
 
-        config(['app.env' => 'local', 'beam-mdx.preview_envs' => ['local']]);
+        config(['app.env' => 'local', 'beam.mdx.preview_envs' => ['local']]);
         $this->get('/broadcasts', ['X-Inertia' => 'true'])->assertOk();
     }
 
@@ -74,7 +74,7 @@ class BeamMdxTest extends TestCase
     public function it_treats_access_gated_content_as_non_public(): void
     {
         $this->seedContent();
-        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+        config(['app.env' => 'production', 'beam.mdx.preview_envs' => []]);
 
         // Ungated docs are public and read back no gate.
         $this->assertFalse(Mdx::isGated('docs/open'));
@@ -88,7 +88,7 @@ class BeamMdxTest extends TestCase
         $this->assertFalse(Mdx::isVisible('docs/guarded'), 'a gated file never resolves on the public route');
 
         // Gating ignores the preview allowlist (it is a confidentiality boundary, not a draft).
-        config(['app.env' => 'staging', 'beam-mdx.preview_envs' => ['staging']]);
+        config(['app.env' => 'staging', 'beam.mdx.preview_envs' => ['staging']]);
         $this->assertFalse(Mdx::isVisible('docs/guarded'));
 
         $this->assertSame(['docs/guarded', 'docs/guarded-list'], Mdx::gatedNames());
@@ -98,12 +98,12 @@ class BeamMdxTest extends TestCase
     public function doctor_fails_when_a_gated_slug_leaks_into_the_bundle(): void
     {
         $root = $this->seedContent();
-        config(['app.env' => 'production', 'beam-mdx.preview_envs' => []]);
+        config(['app.env' => 'production', 'beam.mdx.preview_envs' => []]);
 
         $assets = $root.'/build/assets';
         @mkdir($assets, 0777, true);
         file_put_contents($assets.'/app-abc123.js', 'console.log("open guide");');
-        config(['beam-mdx.build_assets_path' => $assets]);
+        config(['beam.mdx.build_assets_path' => $assets]);
 
         $this->assertSame(0, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor passes with no gated leak');
 
@@ -118,14 +118,14 @@ class BeamMdxTest extends TestCase
         $root = $this->seedContent();
         config([
             'app.env' => 'production',
-            'beam-mdx.preview_envs' => [],
+            'beam.mdx.preview_envs' => [],
         ]);
 
         // A clean bundle dir — no draft slug present.
         $assets = $root.'/build/assets';
         @mkdir($assets, 0777, true);
         file_put_contents($assets.'/app-abc123.js', 'console.log("published essay");');
-        config(['beam-mdx.build_assets_path' => $assets]);
+        config(['beam.mdx.build_assets_path' => $assets]);
 
         $this->assertSame(0, Artisan::call('splicewire:beam:mdx:doctor'), 'doctor passes with no leak');
 
