@@ -23,6 +23,14 @@ use Splicewire\Beam\Mdx\Mdx;
  * preview-allowlisted env the draft leak checks are skipped (drafts are intentionally visible)
  * and a Pass finding says so.
  *
+ * **Standing on borrowed time, deliberately** (beam-docs-satellite ticket 06 / ADR-0209 Consequences).
+ * Both checks guard the BUILD-TIME MDX bundle: `Mdx::isVisible`'s bundle-exclusion draft gate and a
+ * host's build-time content glob. ADR-0209's compile-on-save replaces both with `workflow_marking` +
+ * `EntryPublishGate` + the two-right access model — but only for content that has been CONVERTED to
+ * entries. Until a host's tracks convert (ticket 18), the file-driven plane is still live and these are
+ * still the only thing standing between a draft and a production bundle, so retiring the audit with the
+ * renderer would remove a real guard on the strength of an argument about the future.
+ *
  * Check names + details concatenate to the exact lines the command always printed
  * (`<check>: <detail>`), so extraction is provably behavior-preserving. Zero-arg and
  * container-resolvable, so the shared DoctorRunner and the beam doctor manifest can `make()` it.
