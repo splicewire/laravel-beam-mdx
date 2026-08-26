@@ -42,6 +42,22 @@ use Splicewire\Beam\Mdx\Mdx;
  * The controller still ACCEPTS that JSON spelling as a convenience; it is not the canonical wire,
  * and declaring it would make codegen emit a typed client for the lossy half.
  *
+ * ## Why `update` declares no request body either (api-surface-coherence ticket 64)
+ *
+ * The same argument runs on the input axis, and the sweep that came looking for a DTO here found it
+ * already settled. `update`'s canonical wire is a **raw `text/markdown` body**, which exists precisely
+ * so the source arrives byte-exact past `TrimStrings`; a `#[RequestFromData]` would name a JSON Data
+ * class and thereby publish the lossy `{ "source": … }` spelling as the contract, generating a typed
+ * client that can only send the wrong half. There is no Data shape for "the document itself".
+ *
+ * What the sweep *did* owe this route was a judgement about what it should reject, and the answer is
+ * that the two refusals it owns already exist one layer down, in {@see Mdx::write()} — containment
+ * (traversal, absolute paths, NUL bytes, symlink escapes) and the preview-env hard stop. They were
+ * reaching the client as **500s**, because the controller let their exceptions escape; they are now
+ * mapped to the statuses they mean. Nothing new is rejected: exactly the same requests fail, with an
+ * honest status. There is deliberately no minimum-length or non-empty rule on the body — clearing a
+ * document is a legitimate edit, and inventing a rule to forbid it is what ticket 28 warns against.
+ *
  * The general question — whether a document-media-type response is outside the invariant's
  * extension the way `beam/openapi.yaml` already is, and how to say so without handing every future
  * surface an easy escape hatch — is beam-facade ticket 114, opened over
@@ -83,7 +99,19 @@ class ContentAuthoringController
             ? (string) $request->input('source', '')
             : $request->getContent();
 
-        Mdx::write($name, $raw);
+        // Authoring outside a preview environment is refused by the model layer regardless of the
+        // mount's own gate. Asked here first so the refusal reads as the policy it is (403) rather than
+        // the 500 the escaping RuntimeException produced — and so a genuinely broken content root, which
+        // throws the same exception class, still surfaces as the server fault it is.
+        abort_unless(Mdx::previewAllowed(), 403, 'Content authoring is disabled outside preview environments.');
+
+        try {
+            Mdx::write($name, $raw);
+        } catch (\InvalidArgumentException $e) {
+            // A caller-supplied name that escapes the content root is a bad request, not a server
+            // fault. The message names the rejection only, never a resolved filesystem path.
+            abort(422, 'Unsafe content name.');
+        }
 
         return response()->noContent();
     }
