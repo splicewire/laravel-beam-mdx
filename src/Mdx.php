@@ -3,6 +3,7 @@
 namespace Splicewire\Beam\Mdx;
 
 use Illuminate\Support\Str;
+use Splicewire\Beam\Mdx\Frontmatter\FrontmatterParser;
 
 /**
  * Server-side twin of the @splicewire/beam-mdx Vite plugin's draft gate. The plugin keeps
@@ -314,22 +315,28 @@ class Mdx
         ));
     }
 
-    /** Flat scalar frontmatter from the leading `---` block — only what the gate needs. */
+    /**
+     * Flat scalar frontmatter from the leading `---` block, in the **authored** spelling.
+     *
+     * Reads through the shared {@see FrontmatterParser} (frontmatter-declaration-seam ticket 04) — the
+     * grammar lives in one place now — but deliberately returns `raw`, not `fields`.
+     *
+     * ⚠️ **Do not "fix" this to return the canonical keys.** {@see fields()} is a public, host-facing
+     * reader, and `splicewire/tower`'s `src/Navigation/Docs/DocsGuides.php:74-77` reads `navGroup`,
+     * `navOrder`, `navGroupOrder` and `navParent` off it in **camelCase**, behind `??` defaults that
+     * swallow a miss without an error. Canonicalizing here would silently break tower's docs nav — the
+     * same defect this charter exists to remove, pointed the other way.
+     *
+     * Canonicalization is what a DECLARED SHAPE gets ({@see \Splicewire\Beam\Mdx\Frontmatter\FrontmatterResolver});
+     * it is not something this legacy array reader may start doing under its callers. Changing that
+     * contract is a separate, declared act that updates tower's reader in the same change.
+     *
+     * @return array<string, string>
+     */
     private static function frontmatter(string $path): array
     {
-        $source = (string) file_get_contents($path);
-
-        if (! preg_match('/^---\r?\n(.*?)\r?\n---/s', $source, $match)) {
-            return [];
-        }
-
-        $fields = [];
-        foreach (preg_split('/\r?\n/', $match[1]) as $line) {
-            if (preg_match('/^([A-Za-z0-9_-]+):\s*(.*)$/', $line, $kv)) {
-                $fields[$kv[1]] = trim($kv[2], " \t\"'");
-            }
-        }
-
-        return $fields;
+        return app(FrontmatterParser::class)
+            ->parse((string) file_get_contents($path))
+            ->raw;
     }
 }
