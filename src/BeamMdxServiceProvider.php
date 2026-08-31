@@ -7,6 +7,7 @@ use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Mdx\Console\BeamMdxDoctorCommand;
 use Splicewire\Beam\Mdx\Doctor\MdxContentPlaneAudit;
+use Splicewire\Beam\Mdx\Doctor\UnclaimedFrontmatterKeyAudit;
 use Splicewire\Beam\Mdx\Frontmatter\FrontmatterResolver;
 use Splicewire\Beam\Mdx\Http\Middleware\EnsurePreviewAllowed;
 use Splicewire\Beam\Mdx\Routing\ContentRoutes;
@@ -42,9 +43,21 @@ class BeamMdxServiceProvider extends PackageServiceProvider
         // Guarded by string class-name so this package keeps booting in a host without beam-core
         // installed (this package does not require beam; the manifest binding simply won't exist).
         if ($this->app->bound('Splicewire\\Beam\\Doctor\\BeamDoctorManifest')) {
-            $this->app->make('Splicewire\\Beam\\Doctor\\BeamDoctorManifest')->register(
+            $manifest = $this->app->make('Splicewire\\Beam\\Doctor\\BeamDoctorManifest');
+
+            $manifest->register(
                 package: 'splicewire/laravel-beam-mdx',
                 audit: MdxContentPlaneAudit::class,
+                gate: false,
+            );
+
+            // The unclaimed-frontmatter-key audit — ADVISORY, and `gate: false` is the rule not a
+            // courtesy: which keys a host's authors write is a fact about the HOST, so it may report
+            // but never block. Several keys in this estate's own content are read by the JS plane at
+            // build time and are legitimately unclaimed by any PHP shape.
+            $manifest->register(
+                package: 'splicewire/laravel-beam-mdx',
+                audit: UnclaimedFrontmatterKeyAudit::class,
                 gate: false,
             );
         }
