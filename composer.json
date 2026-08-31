@@ -8,16 +8,19 @@
         "illuminate/console": "^11.0|^12.0|^13.0",
         "illuminate/contracts": "^11.0|^12.0|^13.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
-        "inertiajs/inertia-laravel": "^1.0|^2.0|^3.0",
         "rushing/laravel-doctor": "*",
         "schemastud/laravel-data-schemas": "*",
         "spatie/laravel-package-tools": "^1.16"
     },
     "require-dev": {
+        "inertiajs/inertia-laravel": "^1.0|^2.0|^3.0",
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
         "phpunit/phpunit": "^11.0|^12.0",
         "wikimedia/composer-merge-plugin": "^2.1"
+    },
+    "suggest": {
+        "inertiajs/inertia-laravel": "Required only to MOUNT Route::beamMdxShow()/beamMdxPage(), which render Inertia pages. A host that never mounts a content route does not need it."
     },
     "autoload": {
         "psr-4": {
