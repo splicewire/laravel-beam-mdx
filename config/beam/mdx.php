@@ -74,4 +74,27 @@ return [
     |
     */
     'build_assets_path' => public_path('build/assets'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frontmatter
+    |--------------------------------------------------------------------------
+    |
+    | The declared shape a `---` block is read into. This is the OVERRIDE SEAM: point
+    | it at your own class implementing `Frontmatter\Contracts\Frontmatter` and the
+    | grammar stays shared while the field vocabulary becomes yours.
+    |
+    | It is a seam, not a registry — overriding the default shape is a one-value
+    | choice with no keyspace. A consumer that wants a *different* shape per call
+    | passes one to `FrontmatterResolver::resolve()` directly rather than moving
+    | this key; a package declares its own and never touches the host's default.
+    |
+    | `null` is legal and means "this host declares no default": resolving without
+    | an explicit shape then throws, naming this key. It is not a silent fallback,
+    | because a typo resolving to something plausible is worse than a loud stop.
+    |
+    */
+    'frontmatter' => [
+        'shape' => null,
+    ],
 ];

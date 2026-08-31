@@ -7,6 +7,7 @@ use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Splicewire\Beam\Mdx\Console\BeamMdxDoctorCommand;
 use Splicewire\Beam\Mdx\Doctor\MdxContentPlaneAudit;
+use Splicewire\Beam\Mdx\Frontmatter\FrontmatterResolver;
 use Splicewire\Beam\Mdx\Http\Middleware\EnsurePreviewAllowed;
 use Splicewire\Beam\Mdx\Routing\ContentRoutes;
 
@@ -18,6 +19,14 @@ class BeamMdxServiceProvider extends PackageServiceProvider
             ->name('laravel-beam-mdx')
             ->hasConfigFile('beam/mdx')
             ->hasCommand(BeamMdxDoctorCommand::class);
+    }
+
+    public function packageRegistered(): void
+    {
+        // SHARED on purpose: the resolver owns the hydration-strategy table, so a per-call binding
+        // would silently forget every hydrateUsing() registration. The shapes it *produces* are
+        // per-call — see FrontmatterResolver's own docblock for the two halves of that contract.
+        $this->app->singleton(FrontmatterResolver::class);
     }
 
     public function packageBooted(): void
