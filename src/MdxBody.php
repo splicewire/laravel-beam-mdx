@@ -2,6 +2,8 @@
 
 namespace Splicewire\Beam\Mdx;
 
+use Splicewire\Beam\Mdx\Frontmatter\FrontmatterParser;
+
 /**
  * The **free-tier MDX body machinery** (MIT `laravel-beam-mdx`) folded into BeamUx as the MDX codec's
  * engine (ADR-0164). It is the codec-facing twin of {@see Mdx} (the file-gate twin): where `Mdx` owns
@@ -68,26 +70,25 @@ class MdxBody
     }
 
     /**
-     * Split raw MDX into [frontmatter fields, content-without-frontmatter]. Mirrors the flat-scalar
-     * frontmatter reader in {@see Mdx} so the two can never disagree on what a `---` block means.
+     * Split raw MDX into `[frontmatter fields, content-without-frontmatter]`, reading through the
+     * shared {@see FrontmatterParser} (frontmatter-declaration-seam ticket 04).
+     *
+     * The docblock this replaces said it "mirrors the flat-scalar frontmatter reader in `Mdx` so the
+     * two can never disagree." They already did — four copies of the split regex consumed the newline
+     * after the closing fence and one did not. Mirroring is what this collapse removes.
+     *
+     * ⚠️ Returns the **authored** keys (`raw`), not the canonical ones, for a reason specific to this
+     * reader: {@see encode()}'s output is PERSISTED into the particle body, and {@see decode()} is its
+     * declared inverse. Canonicalizing here would make a round-trip re-emit `nav_order:` over an
+     * author's `navOrder:` — silently rewriting their file the next time an entry is saved. The suite
+     * asserts the byte-for-byte round-trip.
      *
      * @return array{0: array<string, string>, 1: string}
      */
     private static function split(string $raw): array
     {
-        if (! preg_match('/^---\r?\n(.*?)\r?\n---\r?\n?/s', $raw, $match)) {
-            return [[], $raw];
-        }
+        $parsed = app(FrontmatterParser::class)->parse($raw);
 
-        $fields = [];
-        foreach (preg_split('/\r?\n/', $match[1]) as $line) {
-            if (preg_match('/^([A-Za-z0-9_-]+):\s*(.*)$/', $line, $kv)) {
-                $fields[$kv[1]] = trim($kv[2], " \t\"'");
-            }
-        }
-
-        $content = substr($raw, strlen($match[0]));
-
-        return [$fields, $content];
+        return [$parsed->raw, $parsed->content];
     }
 }

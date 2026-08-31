@@ -54,6 +54,28 @@ class MdxReaderCollapseTest extends TestCase
     }
 
     #[Test]
+    public function mdxbody_round_trips_the_authored_spelling_byte_for_byte(): void
+    {
+        // encode/decode are declared inverses and encode's output is PERSISTED into the particle
+        // body. Canonicalizing there would make decode re-emit `nav_order:` over an author's
+        // `navOrder:` — a silent rewrite of their file on the next round-trip. This is the assertion
+        // that forbids it.
+        $raw = "---\ntitle: A guide\nnavGroup: Knowledge\nnavOrder: 2\n---\n# Body\n";
+
+        $this->assertSame($raw, \Splicewire\Beam\Mdx\MdxBody::decode(\Splicewire\Beam\Mdx\MdxBody::encode($raw)));
+    }
+
+    #[Test]
+    public function mdxbody_stores_the_authored_keys_not_the_canonical_ones(): void
+    {
+        $encoded = \Splicewire\Beam\Mdx\MdxBody::encode("---\nnavOrder: 2\n---\nbody\n");
+        $frontmatter = $encoded[\Splicewire\Beam\Mdx\MdxBody::FRONTMATTER_KEY];
+
+        $this->assertArrayHasKey('navOrder', $frontmatter);
+        $this->assertArrayNotHasKey('nav_order', $frontmatter);
+    }
+
+    #[Test]
     public function the_single_word_gates_are_unaffected(): void
     {
         $this->seedGuide();
