@@ -95,6 +95,6 @@ return [
     |
     */
     'frontmatter' => [
-        'shape' => null,
+        'shape' => Splicewire\Beam\Mdx\Frontmatter\FrontmatterData::class,
     ],
 ];

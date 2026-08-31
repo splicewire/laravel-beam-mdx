@@ -59,9 +59,16 @@ class FrontmatterResolver
     /**
      * Register a hydration strategy for a shape that declines {@see HydratesFromFrontmatter}.
      *
-     * This is how a shape whose construction belongs to somebody else — a `spatie/laravel-data` class,
-     * built by the data pipeline rather than by itself — joins the seam without the marker growing a
-     * method. Ticket 03's `FrontmatterData` registers exactly one.
+     * This is how a shape whose construction belongs to somebody else joins the seam without the
+     * marker growing a method — a third-party class you cannot edit, or one built by a pipeline that
+     * wants different arguments.
+     *
+     * ⚠️ Corrected 2026-08-30: an earlier draft of this docblock said `FrontmatterData` registers one.
+     * It does not — it implements {@see HydratesFromFrontmatter} directly, because a
+     * `spatie/laravel-data` class *can* build itself (`static::from()`), so routing it through a
+     * strategy would have added indirection to demonstrate a seam rather than to need it. The
+     * strategy table has no in-estate caller today and exists for shapes that genuinely cannot
+     * implement the capability.
      *
      * @param  class-string<Frontmatter>  $shape
      * @param  callable(ParsedFrontmatter): Frontmatter  $hydrator

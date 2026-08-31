@@ -3,13 +3,44 @@
 namespace Splicewire\Beam\Mdx\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
+use Schemastud\DataSchemas\LaravelDataSchemasServiceProvider;
+use Spatie\LaravelData\LaravelDataServiceProvider;
 use Splicewire\Beam\Mdx\BeamMdxServiceProvider;
 
 class TestCase extends Orchestra
 {
+    /**
+     * ⚠️ Testbench does NOT auto-discover. A provider left off this list never boots, and the class it
+     * would have bound is usually still auto-resolvable — so the container hands back a fresh,
+     * unbound, default-constructed instance instead of failing. Green suite, empty object.
+     *
+     * Both data providers are named for that reason, not for tidiness:
+     *  - `LaravelDataServiceProvider` — without it `config('data')` is `null` and every
+     *    `Data::from()` fatals. {@see assertDataConfigIsLoaded}, which fails loudly if it is dropped.
+     *  - `LaravelDataSchemasServiceProvider` — without it `SchemaIdResolver` stays auto-resolvable
+     *    with a nullable `$baseUri`, so it declares NO authority while the config value sits right
+     *    there. That one does not fail; it answers wrongly.
+     */
     protected function getPackageProviders($app): array
     {
-        return [BeamMdxServiceProvider::class];
+        return [
+            LaravelDataServiceProvider::class,
+            LaravelDataSchemasServiceProvider::class,
+            BeamMdxServiceProvider::class,
+        ];
+    }
+
+    /**
+     * The guard on the trap above: a future edit that drops `LaravelDataServiceProvider` from the list
+     * turns every `Data::from()` into a fatal whose message names neither the provider nor the list.
+     * Asserting the config is loaded turns that into one legible failure.
+     */
+    protected function assertDataConfigIsLoaded(): void
+    {
+        $this->assertIsArray(
+            config('data'),
+            'config("data") is null — LaravelDataServiceProvider is missing from getPackageProviders().'
+        );
     }
 
     /** A throwaway content tree with one published essay, one draft essay, one broadcast. */
