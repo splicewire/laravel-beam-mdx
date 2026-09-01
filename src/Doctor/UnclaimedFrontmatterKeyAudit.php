@@ -39,7 +39,7 @@ class UnclaimedFrontmatterKeyAudit implements DoctorAudit
         $contentPath = rtrim((string) config('beam.mdx.content_path'), '/');
 
         if (! is_dir($contentPath)) {
-            return [Finding::pass('Frontmatter keys', "no content tree at {$contentPath}; nothing to check.")];
+            return [Finding::inconclusive('Frontmatter keys', "no content tree at {$contentPath}; nothing to check.")];
         }
 
         $shape = $this->shapeClass();
@@ -52,7 +52,7 @@ class UnclaimedFrontmatterKeyAudit implements DoctorAudit
         }
 
         if (! is_subclass_of($shape, DeclaresFrontmatterFields::class)) {
-            return [Finding::pass(
+            return [Finding::inconclusive(
                 'Frontmatter keys',
                 "shape [{$shape}] declines DeclaresFrontmatterFields, so its keys were not checked (1 shape skipped)."
             )];
