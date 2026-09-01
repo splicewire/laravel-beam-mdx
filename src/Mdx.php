@@ -322,10 +322,17 @@ class Mdx
      * grammar lives in one place now — but deliberately returns `raw`, not `fields`.
      *
      * ⚠️ **Do not "fix" this to return the canonical keys.** {@see fields()} is a public, host-facing
-     * reader, and `splicewire/tower`'s `src/Navigation/Docs/DocsGuides.php:74-77` reads `navGroup`,
-     * `navOrder`, `navGroupOrder` and `navParent` off it in **camelCase**, behind `??` defaults that
-     * swallow a miss without an error. Canonicalizing here would silently break tower's docs nav — the
-     * same defect this charter exists to remove, pointed the other way.
+     * reader whose callers index the array by the **authored** spelling behind `??` defaults, which
+     * swallow a miss without an error — so canonicalizing here breaks a reader silently rather than
+     * loudly, the same defect this charter exists to remove, pointed the other way.
+     *
+     * ⚠️ **The named consumer this warning used to cite is GONE.** It was
+     * `splicewire/tower`'s `src/Navigation/Docs/DocsGuides.php:74-77`, deleted at
+     * beam-docs-satellite ticket 54 §5 when the docs guides became `beam_ux_entries`. Re-measured in
+     * the same change: `Mdx::fields()` has **no production caller left in the estate** — only this
+     * package's own `MdxReaderCollapseTest`. The contract is kept because it is public and a host may
+     * call it, NOT because a known reader depends on it; do not cite a consumer here without
+     * re-measuring one.
      *
      * Canonicalization is what a DECLARED SHAPE gets ({@see \Splicewire\Beam\Mdx\Frontmatter\FrontmatterResolver});
      * it is not something this legacy array reader may start doing under its callers. Changing that

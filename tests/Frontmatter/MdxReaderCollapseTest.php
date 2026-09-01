@@ -10,10 +10,14 @@ use Splicewire\Beam\Mdx\Tests\TestCase;
  * `Mdx` now reads through the shared grammar (ticket 04, step 1) — and its PUBLIC contract is
  * unchanged, which is the whole point of the step.
  *
- * ⚠️ `Mdx::fields()` returns the AUTHORED keys, not the canonical ones. `splicewire/tower`'s
- * `src/Navigation/Docs/DocsGuides.php:74-77` reads `navGroup`, `navOrder`, `navGroupOrder` and
- * `navParent` — camelCase — straight off this method, behind `??` defaults that would swallow a miss
- * silently. Canonicalizing here would break tower's docs nav with no error anywhere.
+ * ⚠️ `Mdx::fields()` returns the AUTHORED keys, not the canonical ones — a caller indexes it by the
+ * camelCase spelling behind `??` defaults that would swallow a miss silently, so canonicalizing here
+ * breaks a reader with no error anywhere.
+ *
+ * ⚠️ The consumer this file used to name — `splicewire/tower`'s `src/Navigation/Docs/DocsGuides.php` —
+ * was deleted at beam-docs-satellite ticket 54 §5, and a sweep in that change found **no production
+ * caller of `Mdx::fields()` anywhere in the estate**. This test is now the only one, which makes it
+ * the contract's sole guard rather than its corroboration.
  *
  * This is why {@see \Splicewire\Beam\Mdx\Frontmatter\ParsedFrontmatter} carries both key sets: the
  * collapse is behaviour-preserving because `raw` exists. Changing this method's contract is a separate,
