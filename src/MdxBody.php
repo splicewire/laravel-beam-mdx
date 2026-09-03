@@ -80,8 +80,31 @@ class MdxBody
      * ⚠️ Returns the **authored** keys (`raw`), not the canonical ones, for a reason specific to this
      * reader: {@see encode()}'s output is PERSISTED into the particle body, and {@see decode()} is its
      * declared inverse. Canonicalizing here would make a round-trip re-emit `nav_order:` over an
-     * author's `navOrder:` — silently rewriting their file the next time an entry is saved. The suite
-     * asserts the byte-for-byte round-trip.
+     * author's `navOrder:` — silently rewriting their file the next time an entry is saved.
+     *
+     * ## What the round trip actually guarantees (beam-docs-satellite ticket 70)
+     *
+     * This slot used to say only *"the suite asserts the byte-for-byte round-trip"*, which was broader
+     * than the one fixture behind it — a source with no terminal blank line, no quoted value, no CRLF
+     * and no blank line inside the fence. The guarantee, now measured on all of those in
+     * {@see \Splicewire\Beam\Mdx\Tests\Frontmatter\MdxBodyRoundTripTest}, is two-part:
+     *
+     *  - **`content` is byte-for-byte**, terminal newlines at BOTH ends included, with or without a
+     *    frontmatter block. Nothing here trims it. That property is load-bearing rather than tidy:
+     *    `Splicewire\Beam\Ux\Storage\PlacedDiskMirror` writes `decode()`'s output to a **git-tracked**
+     *    file, so a save of an unedited body must produce no diff.
+     *  - **The frontmatter fence is NORMALIZED**, and deliberately. It is parsed into a `key => value`
+     *    map and re-emitted from it, so what the map cannot carry does not come back: line endings
+     *    (`\r\n` in the fence returns as `\n`), the author's quoting (`title: "A"` returns as
+     *    `title: A`), and any line that is not `key: value` (a blank line, a comment). The authored key
+     *    SPELLING is the one thing preserved across that, which is what `raw` is for. Forward is total,
+     *    backward is best-effort over a narrower representation —
+     *    `scriptorium-corpus/apocrypha/data-entry-surface-is-a-lossy-projection.md`.
+     *
+     * ⚠️ Ticket 70 was filed on the belief that a save strips one leading and one trailing newline from
+     * `content` here. It does not — that was measured two ways (this codec directly, and an
+     * `EntryBodySaveOp` → `EntryBodyShowOp` pair end to end), and both round-trip the ends unchanged.
+     * Where the flagship's two bytes actually went is unresolved and is NOT in this file.
      *
      * @return array{0: array<string, string>, 1: string}
      */
