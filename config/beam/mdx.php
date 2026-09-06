@@ -49,6 +49,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Expected file-content population
+    |--------------------------------------------------------------------------
+    |
+    | Whether this host expects `.mdx` files under content_path. Entry-backed
+    | hosts may declare false: an empty tree then makes the content-plane audit
+    | not applicable. Any files found are ALWAYS audited for draft/access and
+    | bundle leaks, regardless of this expectation. Runtime guards are unchanged.
+    |
+    */
+    'file_content_expected' => true,
+
+    /*
+    |--------------------------------------------------------------------------
     | Authoring API root (ADR-0124 owner-tier seam)
     |--------------------------------------------------------------------------
     |

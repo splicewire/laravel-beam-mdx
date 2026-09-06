@@ -61,6 +61,14 @@ class MdxContentPlaneAudit implements DoctorAudit
             }
         }
 
+        // Expectation only qualifies an empty inventory; it never disables guards on actual files.
+        if ($mdxCount === 0 && config('beam.mdx.file_content_expected', true) === false) {
+            return [Finding::inconclusive(
+                'MDX plane not applicable',
+                "beam.mdx.file_content_expected=false and no .mdx under {$contentPath}; no file content to audit.",
+            )];
+        }
+
         $findings[] = $mdxCount > 0
             ? Finding::pass('MDX plane wired', "{$mdxCount} content file(s) under {$contentPath}.")
             : Finding::fail('MDX plane not wired', "no .mdx under {$contentPath}.");

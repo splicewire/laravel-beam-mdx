@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Rushing\Doctor\DoctorStatus;
 use Splicewire\Beam\Mdx\Doctor\MdxContentPlaneAudit;
+use Splicewire\Beam\Mdx\Mdx;
 use Splicewire\Beam\Mdx\Tests\TestCase;
 
 class MdxContentPlaneAuditTest extends TestCase
@@ -123,6 +124,86 @@ class MdxContentPlaneAuditTest extends TestCase
         $this->assertSame('Bundle', $leaks[0]->check);
         $this->assertStringContainsString('gated slug(s)', $leaks[0]->detail);
         $this->assertStringContainsString('secret-guide', $leaks[0]->detail);
+    }
+
+    #[Test]
+    public function file_content_is_expected_by_default(): void
+    {
+        $this->assertTrue(config('beam.mdx.file_content_expected'));
+        $this->assertSame(DoctorStatus::Fail, (new MdxContentPlaneAudit)->run()[0]->status);
+    }
+
+    public static function emptyPopulations(): array
+    {
+        return [
+            'missing directory' => ['missing'],
+            'empty directory' => ['empty'],
+            'other file extensions only' => ['other'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('emptyPopulations')]
+    public function explicitly_unexpected_empty_content_is_inconclusive(string $population): void
+    {
+        config(['beam.mdx.file_content_expected' => false]);
+        if ($population !== 'missing') {
+            mkdir(resource_path('js/content'), 0777, true);
+        }
+        if ($population === 'other') {
+            file_put_contents(resource_path('js/content/page.tsx'), 'export default null;');
+        }
+
+        $findings = (new MdxContentPlaneAudit)->run();
+
+        $this->assertCount(1, $findings, 'An empty optional plane must not emit ordinary clean gate/bundle findings.');
+        $this->assertSame(DoctorStatus::Pass, $findings[0]->status);
+        $this->assertFalse($findings[0]->conclusive);
+        $this->assertSame('MDX plane not applicable', $findings[0]->check);
+        $this->assertStringContainsString('beam.mdx.file_content_expected=false', $findings[0]->detail);
+        $this->assertStringContainsString(resource_path('js/content'), $findings[0]->detail);
+    }
+
+    public static function protectedFiles(): array
+    {
+        return [
+            'draft in production' => ['draft: true', 'production', 'draft slug(s)'],
+            'gated in production' => ['access: root', 'production', 'gated slug(s)'],
+            'gated in preview' => ['access: root', 'staging', 'gated slug(s)'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('protectedFiles')]
+    public function actual_files_keep_all_guards_even_when_unexpected(string $frontmatter, string $env, string $leakDetail): void
+    {
+        config([
+            'beam.mdx.file_content_expected' => false,
+            'app.env' => $env,
+            'beam.mdx.preview_envs' => ['staging'],
+        ]);
+        $audit = new MdxContentPlaneAudit;
+        $this->assertFalse($audit->run()[0]->conclusive);
+
+        // The same audit must see a file that appears later, including in a nested directory.
+        mkdir(resource_path('js/content/nested'), 0777, true);
+        file_put_contents(resource_path('js/content/nested/private-guide.mdx'), "---\n{$frontmatter}\n---\nBody\n");
+        $this->assertFalse(Mdx::isVisible('nested/private-guide'));
+
+        $clean = $audit->run();
+        $this->assertSame('MDX plane wired', $clean[0]->check);
+        $this->assertTrue($clean[0]->conclusive);
+        $this->assertSame([], array_values(array_filter($clean, fn ($finding) => $finding->status === DoctorStatus::Fail)));
+
+        file_put_contents($this->root.'/assets/app.js', 'const slug = "private-guide";');
+        $unexpected = $audit->run();
+        $leaks = array_values(array_filter($unexpected, fn ($finding) => $finding->status === DoctorStatus::Fail));
+        $this->assertCount(1, $leaks);
+        $this->assertSame('Bundle', $leaks[0]->check);
+        $this->assertStringContainsString($leakDetail, $leaks[0]->detail);
+
+        config(['beam.mdx.file_content_expected' => true]);
+        $this->assertEquals($audit->run(), $unexpected, 'Actual files receive exactly the same guards under either expectation.');
     }
 
     private function mountEntryRoute(): void
