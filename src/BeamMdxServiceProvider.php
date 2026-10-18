@@ -38,6 +38,16 @@ class BeamMdxServiceProvider extends PackageServiceProvider
         // The `beam-mdx.preview` alias — gate a whole surface to preview-allowlisted envs.
         $this->app->make(Router::class)->aliasMiddleware('beam-mdx.preview', EnsurePreviewAllowed::class);
 
+        // Self-register into beam-core's install manifest so `splicewire:beam:install` publishes
+        // this package's config with the rest of the stack (B2-2 enrollment; no migrations here).
+        if ($this->app->bound('Splicewire\\Beam\\Install\\BeamInstallManifest')) {
+            $this->app->make('Splicewire\\Beam\\Install\\BeamInstallManifest')->register(
+                package: 'splicewire/laravel-beam-mdx',
+                publishTags: ['beam-mdx-config'],
+                migrates: false,
+            );
+        }
+
         // Register the content-plane audit — ADVISORY — DOWN into beam-core's doctor aggregation
         // manifest, so one `splicewire:beam:doctor` run reports it with the rest of the family.
         // Guarded by string class-name so this package keeps booting in a host without beam-core
