@@ -26,6 +26,19 @@ final class MdxKitNodeSourceTest extends TestCase
         }
     }
 
+    public function test_artifact_is_declared_only_where_the_host_renders_it(): void
+    {
+        // Artifact is a host component (the flagship's own highlighter plugin renders it), not one beam-mdx/kit ships.
+        // A host without it turns the switch off, or its MDX pages would declare a component no registry can draw.
+        $this->assertContains('Artifact', array_column((new MdxKitNodeSource)->manifest('content')['nodes'], 'name'), 'on by default');
+
+        config(['beam.mdx.kit.artifact' => false]);
+        $names = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], 'name');
+
+        $this->assertNotContains('Artifact', $names);
+        $this->assertContains('Ref', $names);
+    }
+
     public function test_the_kit_places_where_html_does_and_its_own_categories_hold_steps_and_cards(): void
     {
         $nodes = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], null, 'name');

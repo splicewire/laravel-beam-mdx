@@ -124,4 +124,18 @@ return [
     'lens' => [
         'node' => env('BEAM_MDX_LENS_NODE', 'node'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MDX kit
+    |--------------------------------------------------------------------------
+    |
+    | The beam-mdx kit's Code Components an MDX page that holds blocks may place (ux-0233 d7). `artifact` declares
+    | `<Artifact>`, which the HOST renders (the flagship's highlighter plugin) rather than `@splicewire/beam-mdx/kit`:
+    | a host that has no such component turns it off, or its MDX pages declare a component its registry cannot draw.
+    |
+    */
+    'kit' => [
+        'artifact' => (bool) env('BEAM_MDX_KIT_ARTIFACT', true),
+    ],
 ];
