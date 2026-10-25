@@ -10,6 +10,8 @@ use Splicewire\Beam\Mdx\Doctor\MdxContentPlaneAudit;
 use Splicewire\Beam\Mdx\Doctor\UnclaimedFrontmatterKeyAudit;
 use Splicewire\Beam\Mdx\Frontmatter\FrontmatterResolver;
 use Splicewire\Beam\Mdx\Http\Middleware\EnsurePreviewAllowed;
+use Splicewire\Beam\Mdx\Lens\MdxLens;
+use Splicewire\Beam\Mdx\Lens\NodeMdxLens;
 use Splicewire\Beam\Mdx\Routing\ContentRoutes;
 
 class BeamMdxServiceProvider extends PackageServiceProvider
@@ -28,6 +30,9 @@ class BeamMdxServiceProvider extends PackageServiceProvider
         // would silently forget every hydrateUsing() registration. The shapes it *produces* are
         // per-call — see FrontmatterResolver's own docblock for the two halves of that contract.
         $this->app->singleton(FrontmatterResolver::class);
+
+        // The MDX Lens (ux-0233 d2) runs in Node; a host or test binds another implementation.
+        $this->app->bind(MdxLens::class, fn (): MdxLens => new NodeMdxLens((string) config('beam.mdx.lens.node', 'node')));
     }
 
     public function packageBooted(): void

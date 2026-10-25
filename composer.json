@@ -8,9 +8,12 @@
         "illuminate/console": "^11.0|^12.0|^13.0",
         "illuminate/contracts": "^11.0|^12.0|^13.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/validation": "^11.0|^12.0|^13.0",
         "rushing/laravel-doctor": "*",
+        "schemastud/laravel-blockdoc": "*",
         "schemastud/laravel-data-schemas": "*",
-        "spatie/laravel-package-tools": "^1.16"
+        "spatie/laravel-package-tools": "^1.16",
+        "symfony/process": "^6.4|^7.0|^8.0"
     },
     "require-dev": {
         "inertiajs/inertia-laravel": "^1.0|^2.0|^3.0",
@@ -94,6 +97,13 @@
             }
         },
         {
+            "type": "path",
+            "url": "../../schemastud/laravel-blockdoc",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
             "type": "git",
             "url": "https://github.com/stephenr85/laravel-doctor.git"
         },
@@ -116,6 +126,10 @@
         {
             "type": "git",
             "url": "https://github.com/stephenr85/laravel-pipeline-registry.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/schemastud/laravel-blockdoc.git"
         }
     ],
     "config": {

@@ -110,4 +110,18 @@ return [
     'frontmatter' => [
         'shape' => Splicewire\Beam\Mdx\Frontmatter\FrontmatterData::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MDX Lens
+    |--------------------------------------------------------------------------
+    |
+    | The Node binary the MDX Lens worker runs under (ux-0233 d2). The worker resolves
+    | `@splicewire/beam-mdx/lens` from the host's own node_modules, so the host installs
+    | `@splicewire/beam-mdx` and `@splicewire/beam-ux`.
+    |
+    */
+    'lens' => [
+        'node' => env('BEAM_MDX_LENS_NODE', 'node'),
+    ],
 ];
