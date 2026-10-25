@@ -21,8 +21,10 @@ final class NodeMdxLensTest extends TestCase
 
     public function test_the_lens_runs_under_the_hosts_pinned_node_binary_unless_it_names_its_own(): void
     {
-        $lensNode = function (array $env): string {
-            foreach (['BEAM_UX_NODE_BINARY', 'BEAM_MDX_LENS_NODE'] as $key) {
+        $keys = ['BEAM_UX_NODE_BINARY', 'BEAM_MDX_LENS_NODE'];
+        $prior = array_combine($keys, array_map(fn (string $key) => [getenv($key), $_ENV[$key] ?? null, $_SERVER[$key] ?? null], $keys));
+        $lensNode = function (array $env) use ($keys): string {
+            foreach ($keys as $key) {
                 $value = $env[$key] ?? null;
                 putenv($value === null ? $key : "{$key}={$value}");
                 if ($value === null) {
@@ -42,7 +44,20 @@ final class NodeMdxLensTest extends TestCase
             $this->assertSame('/opt/node/bin/node', $lensNode(['BEAM_UX_NODE_BINARY' => '/opt/node/bin/node']));
             $this->assertSame('/usr/local/bin/node', $lensNode(['BEAM_UX_NODE_BINARY' => '/opt/node/bin/node', 'BEAM_MDX_LENS_NODE' => '/usr/local/bin/node']));
         } finally {
-            $lensNode([]);
+            // Put back what the run had, so a host or CI that sets either variable keeps it for the tests after this one.
+            foreach ($prior as $key => [$process, $env, $server]) {
+                putenv($process === false ? $key : "{$key}={$process}");
+                if ($env === null) {
+                    unset($_ENV[$key]);
+                } else {
+                    $_ENV[$key] = $env;
+                }
+                if ($server === null) {
+                    unset($_SERVER[$key]);
+                } else {
+                    $_SERVER[$key] = $server;
+                }
+            }
         }
     }
 
