@@ -55,11 +55,15 @@ final class MdxKitNodeSource implements ManifestNodeSource
             return [];
         }
 
-        // Artifact is rendered by the host (the flagship's highlighter plugin), not by beam-mdx/kit: a host without it
-        // turns `beam.mdx.kit.artifact` off, so its MDX pages never declare a component its registry cannot draw.
-        return config('beam.mdx.kit.artifact', true)
-            ? self::NODES
-            : array_values(array_filter(self::NODES, fn (string $class) => $class !== Artifact::class));
+        // Artifact and Ref are rendered by the host (the flagship's highlighter plugin; Ref's BeamMdxProvider and
+        // references manifest), not by beam-mdx/kit: a host without one turns `beam.mdx.kit.artifact` or
+        // `beam.mdx.kit.ref` off, so its MDX pages never declare a component its registry cannot draw.
+        $off = [
+            ...(config('beam.mdx.kit.artifact', true) ? [] : [Artifact::class]),
+            ...(config('beam.mdx.kit.ref', true) ? [] : [Ref::class]),
+        ];
+
+        return array_values(array_filter(self::NODES, fn (string $class) => ! in_array($class, $off, true)));
     }
 
     public function docAdmitsFor(string $profile): ?array

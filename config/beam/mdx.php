@@ -142,5 +142,8 @@ return [
     */
     'kit' => [
         'artifact' => (bool) env('BEAM_MDX_KIT_ARTIFACT', true),
+        // `<Ref>` renders through the host's BeamMdxProvider and references manifest, and comes only from beam-mdx's
+        // root entry, which a browser bundle cannot load; a host without it turns this off too.
+        'ref' => (bool) env('BEAM_MDX_KIT_REF', true),
     ],
 ];
