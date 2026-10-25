@@ -19,6 +19,48 @@ final class NodeMdxLensTest extends TestCase
         $this->assertInstanceOf(NodeMdxLens::class, $this->app->make(MdxLens::class));
     }
 
+    public function test_the_lens_runs_under_the_hosts_pinned_node_binary_unless_it_names_its_own(): void
+    {
+        $keys = ['BEAM_UX_NODE_BINARY', 'BEAM_MDX_LENS_NODE'];
+        $prior = array_combine($keys, array_map(fn (string $key) => [getenv($key), $_ENV[$key] ?? null, $_SERVER[$key] ?? null], $keys));
+        $lensNode = function (array $env) use ($keys): string {
+            foreach ($keys as $key) {
+                $value = $env[$key] ?? null;
+                putenv($value === null ? $key : "{$key}={$value}");
+                if ($value === null) {
+                    unset($_ENV[$key], $_SERVER[$key]);
+                } else {
+                    $_ENV[$key] = $_SERVER[$key] = $value;
+                }
+            }
+
+            return (require __DIR__.'/../../config/beam/mdx.php')['lens']['node'];
+        };
+
+        try {
+            $this->assertSame('node', $lensNode([]));
+            // Under php-fpm there is no PATH: the one binary a host pins for beam-ux's compile must serve the lens too,
+            // or publishing an MDX page that holds blocks fails with `exec: node: not found`.
+            $this->assertSame('/opt/node/bin/node', $lensNode(['BEAM_UX_NODE_BINARY' => '/opt/node/bin/node']));
+            $this->assertSame('/usr/local/bin/node', $lensNode(['BEAM_UX_NODE_BINARY' => '/opt/node/bin/node', 'BEAM_MDX_LENS_NODE' => '/usr/local/bin/node']));
+        } finally {
+            // Put back what the run had, so a host or CI that sets either variable keeps it for the tests after this one.
+            foreach ($prior as $key => [$process, $env, $server]) {
+                putenv($process === false ? $key : "{$key}={$process}");
+                if ($env === null) {
+                    unset($_ENV[$key]);
+                } else {
+                    $_ENV[$key] = $env;
+                }
+                if ($server === null) {
+                    unset($_SERVER[$key]);
+                } else {
+                    $_SERVER[$key] = $server;
+                }
+            }
+        }
+    }
+
     public function test_a_host_without_the_lens_package_is_told_to_install_it(): void
     {
         $this->requireNode();

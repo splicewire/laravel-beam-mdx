@@ -120,9 +120,14 @@ return [
     | `@splicewire/beam-mdx/lens` from the host's own node_modules, so the host installs
     | `@splicewire/beam-mdx` and `@splicewire/beam-ux`.
     |
+    | php-fpm has no PATH, so a bare `node` is not found when a page is saved over HTTP.
+    | Unless `BEAM_MDX_LENS_NODE` names another, the lens runs under the absolute binary
+    | the host pins for beam-ux's compile (`BEAM_UX_NODE_BINARY`, written by
+    | `splicewire:beam:ux:pin-node`).
+    |
     */
     'lens' => [
-        'node' => env('BEAM_MDX_LENS_NODE', 'node'),
+        'node' => env('BEAM_MDX_LENS_NODE', env('BEAM_UX_NODE_BINARY', 'node')),
     ],
 
     /*
