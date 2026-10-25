@@ -39,6 +39,20 @@ final class MdxKitNodeSourceTest extends TestCase
         $this->assertContains('Ref', $names);
     }
 
+    public function test_ref_is_declared_only_where_the_host_renders_it(): void
+    {
+        // Ref renders through the host's BeamMdxProvider and references manifest, and is exported only from beam-mdx's
+        // root entry, whose content graph a browser bundle cannot load (starter receipt rerun 2026-10-25: the app
+        // crashed on boot). A host without it turns the switch off, as it does for Artifact.
+        $this->assertContains('Ref', array_column((new MdxKitNodeSource)->manifest('content')['nodes'], 'name'), 'on by default');
+
+        config(['beam.mdx.kit.ref' => false]);
+        $names = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], 'name');
+
+        $this->assertNotContains('Ref', $names);
+        $this->assertContains('Artifact', $names);
+    }
+
     public function test_the_kit_places_where_html_does_and_its_own_categories_hold_steps_and_cards(): void
     {
         $nodes = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], null, 'name');
