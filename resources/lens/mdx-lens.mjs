@@ -73,8 +73,9 @@ const main = async () => {
 
   try {
     if (op === 'read') {
-      const { doc, meta } = readMdx(input.body, input.context ?? {})
-      process.stdout.write(JSON.stringify({ doc, meta }))
+      // ux-0233 d9: metaData is the meta export's value when static, which a host's conversion writes as frontmatter.
+      const { doc, meta, metaData } = readMdx(input.body, input.context ?? {})
+      process.stdout.write(JSON.stringify({ doc, meta, metaData: metaData ?? null }))
     } else {
       process.stdout.write(JSON.stringify({ mdx: printMdx(input.doc) }))
     }

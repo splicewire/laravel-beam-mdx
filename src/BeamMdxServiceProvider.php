@@ -21,7 +21,7 @@ class BeamMdxServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-beam-mdx')
             ->hasConfigFile('beam/mdx')
-            ->hasCommand(BeamMdxDoctorCommand::class);
+            ->hasCommands([BeamMdxDoctorCommand::class, Console\ConvertCommand::class]);
     }
 
     public function packageRegistered(): void
@@ -80,6 +80,13 @@ class BeamMdxServiceProvider extends PackageServiceProvider
             $manifest->register(
                 package: 'splicewire/laravel-beam-mdx',
                 audit: UnclaimedFrontmatterKeyAudit::class,
+                gate: false,
+            );
+
+            // ADR-0233 d8: a fragment no page includes is reported, not converted. ADVISORY: the host's to decide.
+            $manifest->register(
+                package: 'splicewire/laravel-beam-mdx',
+                audit: Doctor\UnusedFragmentAudit::class,
                 gate: false,
             );
         }

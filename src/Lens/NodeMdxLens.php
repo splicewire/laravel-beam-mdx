@@ -32,7 +32,7 @@ final class NodeMdxLens implements MdxLens
         /** @var array<int, array<string, mixed>> $doc */
         $doc = $decoded['doc'];
 
-        return ['doc' => $doc, 'meta' => $decoded['meta']];
+        return ['doc' => $doc, 'meta' => $decoded['meta'], 'metaData' => is_array($decoded['metaData'] ?? null) ? $decoded['metaData'] : null];
     }
 
     public function print(array $doc): string

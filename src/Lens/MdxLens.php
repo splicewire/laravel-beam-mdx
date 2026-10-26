@@ -12,11 +12,11 @@ interface MdxLens
 {
     /**
      * Read an MDX body into blocks. `$context` is the TSX Lens's: a resolved Manifest Profile (`profile`), and the
-     * enclosing component when the body is a component entry's (`component`).
+     * enclosing component when the body is a component entry's (`component`). `meta` is schemastud's `export const
+     * meta = {…}` source, if any, and `metaData` its value when static (ux-0233 d9).
      *
      * @param  array{profile?: array<string, mixed>, component?: string}  $context
-     * @return array{doc: array<int, array<string, mixed>>, meta: string|null} `meta` is schemastud's
-     *                                                                         `export const meta = {…}` source, if any
+     * @return array{doc: array<int, array<string, mixed>>, meta: string|null, metaData?: array<string, mixed>|null}
      */
     public function read(string $body, array $context = []): array;
 
