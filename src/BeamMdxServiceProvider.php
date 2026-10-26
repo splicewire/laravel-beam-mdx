@@ -53,6 +53,13 @@ class BeamMdxServiceProvider extends PackageServiceProvider
             );
         }
 
+        // ADR-0233 d8: the four legal texts ship from here as Authored Components, seeded with the rest of the stack.
+        // Their seeder uses laravel-beam-ux's seeding, so it registers only where beam-core's seed manifest is bound and
+        // laravel-beam-ux is installed (which requires this package; this package never requires it).
+        if ($this->app->bound('Splicewire\\Beam\\Seed\\BeamSeedManifest') && trait_exists('Splicewire\\Beam\\Ux\\Seed\\SeedsEntries')) {
+            $this->app->make('Splicewire\\Beam\\Seed\\BeamSeedManifest')->register('splicewire/laravel-beam-mdx', Legal\LegalComponentsSeeder::class, order: 30);
+        }
+
         // Register the content-plane audit — ADVISORY — DOWN into beam-core's doctor aggregation
         // manifest, so one `splicewire:beam:doctor` run reports it with the rest of the family.
         // Guarded by string class-name so this package keeps booting in a host without beam-core
