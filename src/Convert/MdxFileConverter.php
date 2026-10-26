@@ -48,31 +48,19 @@ final class MdxFileConverter
                 continue;
             }
             $source = (string) file_get_contents("{$root}/{$relative}");
-            [$frontmatter, $body] = $this->split($source);
-            try {
-                $read = $this->lens->read($body);
-            } catch (ValidationException|\RuntimeException $failure) {
-                $report->leftOut[$relative] = 'the lens cannot read it: '.$this->message($failure);
-
-                continue;
-            }
-            $placed = [];
-            $problem = null;
-            $doc = $this->placeFragments($read['doc'], $fragments, $placed, $problem);
-            $used += array_fill_keys(array_keys($placed), true);
-            [$frontmatter, $problem] = $problem === null ? $this->frontmatter($frontmatter, $read['meta'], $read['metaData'] ?? null) : [$frontmatter, $problem];
+            [$frontmatter, $body] = self::split($source);
+            $body = $this->convertBody($body, $fragments);
+            $used += array_fill_keys(array_keys($body['placed']), true);
+            [$frontmatter, $problem] = $body['problem'] === null
+                ? $this->frontmatterWithMeta($frontmatter, $body['meta'], $body['metaData'])
+                : [$frontmatter, $body['problem']];
             if ($problem !== null) {
                 $report->leftOut[$relative] = $problem;
 
                 continue;
             }
-            $printed = $this->lens->print($doc);
-            $back = $this->lens->read($printed)['doc'];
-            if (! self::same($back, $doc) || self::text($back) !== self::text($read['doc'])) {
-                $report->leftOut[$relative] = 'its blocks or visible text would change, so it is left as it is';
-
-                continue;
-            }
+            $printed = $body['printed'];
+            $placed = $body['placed'];
             $converted = ($frontmatter === null ? '' : "---\n{$frontmatter}\n---\n\n").$printed;
             if ($converted === $source) {
                 $report->unchanged[] = $relative;
@@ -103,6 +91,55 @@ final class MdxFileConverter
         ksort($report->hostComponents);
 
         return $report;
+    }
+
+    /**
+     * One MDX body converted (d8, d9; ruling 1): read through the lens, each fragment placed as its component's tag, and
+     * printed canonically, safe only when the blocks read back from the print equal the converted ones and the visible
+     * text is unchanged. A stored page's body (laravel-beam-ux) converts the same way as a file's.
+     *
+     * @param  array<string, string>  $fragments  the content root's fragments, by content name ({@see fragmentsUnder()})
+     * @return array{doc: array<int, array<string, mixed>>, printed: string, placed: array<string, string>, meta: ?string, metaData: ?array, problem: ?string}
+     */
+    public function convertBody(string $body, array $fragments): array
+    {
+        $out = ['doc' => [], 'printed' => '', 'placed' => [], 'meta' => null, 'metaData' => null, 'problem' => null];
+        try {
+            $read = $this->lens->read($body);
+        } catch (ValidationException|\RuntimeException $failure) {
+            return ['problem' => 'the lens cannot read it: '.$this->message($failure)] + $out;
+        }
+        $placed = [];
+        $problem = null;
+        $doc = $this->placeFragments($read['doc'], $fragments, $placed, $problem);
+        $out = ['doc' => $doc, 'placed' => $placed, 'meta' => $read['meta'], 'metaData' => $read['metaData'] ?? null] + $out;
+        if ($problem !== null) {
+            return ['problem' => $problem] + $out;
+        }
+        $printed = $this->lens->print($doc);
+        $back = $this->lens->read($printed)['doc'];
+        if (! self::same($back, $doc) || self::text($back) !== self::text($read['doc'])) {
+            return ['problem' => 'its blocks or visible text would change, so it is left as it is'] + $out;
+        }
+
+        return ['printed' => $printed] + $out;
+    }
+
+    /**
+     * The fragments under a content root, by the content name a page places them with (`fragments/legal-engine`).
+     *
+     * @return array<string, string> content name => relative path
+     */
+    public static function fragmentsUnder(string $root): array
+    {
+        $out = [];
+        foreach (self::walk(rtrim($root, '/'))['files'] as $relative) {
+            if (self::isFragment($relative)) {
+                $out[substr($relative, 0, -4)] = $relative;
+            }
+        }
+
+        return $out;
     }
 
     public static function isFragment(string $relative): bool
@@ -155,7 +192,7 @@ final class MdxFileConverter
     }
 
     /** @return array{0: ?string, 1: string} the frontmatter's inner text (null with none) and the body */
-    private function split(string $source): array
+    public static function split(string $source): array
     {
         if (preg_match('/^---\r?\n(.*?)\r?\n---\r?\n?/s', $source, $match) !== 1) {
             return [null, $source];
@@ -204,11 +241,11 @@ final class MdxFileConverter
 
     /**
      * The frontmatter with a static meta's keys added as written, each read back by the frontmatter grammar to the value
-     * it holds; a page whose meta has no such form is reported instead.
+     * it holds; a page whose meta has no such form is reported instead. A stored page's source converts the same way.
      *
      * @return array{0: ?string, 1: ?string} the frontmatter's inner text, and a problem
      */
-    private function frontmatter(?string $frontmatter, ?string $meta, ?array $metaData): array
+    public function frontmatterWithMeta(?string $frontmatter, ?string $meta, ?array $metaData): array
     {
         if ($meta === null) {
             return [$frontmatter, null];
