@@ -41,6 +41,7 @@ final class MdxFileConverter
             self::isFragment($relative) ? $fragments[$name] = $relative : $pages[] = $relative;
         }
         $used = [];
+        $drift = $this->legalDrift($root, $fragments);
         foreach ($pages as $relative) {
             if (! self::inside($root, $relative)) {
                 $report->leftOut[$relative] = 'it resolves outside the content root';
@@ -49,7 +50,7 @@ final class MdxFileConverter
             }
             $source = (string) file_get_contents("{$root}/{$relative}");
             [$frontmatter, $body] = self::split($source);
-            $body = $this->convertBody($body, $fragments);
+            $body = $this->convertBody($body, $fragments, $drift);
             $used += array_fill_keys(array_keys($body['placed']), true);
             [$frontmatter, $problem] = $body['problem'] === null
                 ? $this->frontmatterWithMeta($frontmatter, $body['meta'], $body['metaData'])
@@ -99,9 +100,10 @@ final class MdxFileConverter
      * text is unchanged. A stored page's body (laravel-beam-ux) converts the same way as a file's.
      *
      * @param  array<string, string>  $fragments  the content root's fragments, by content name ({@see fragmentsUnder()})
+     * @param  array<string, string>  $drift  the legal fragments that can't stand as the shipped component ({@see legalDrift()})
      * @return array{doc: array<int, array<string, mixed>>, printed: string, placed: array<string, string>, meta: ?string, metaData: ?array, problem: ?string}
      */
-    public function convertBody(string $body, array $fragments): array
+    public function convertBody(string $body, array $fragments, array $drift = []): array
     {
         $out = ['doc' => [], 'printed' => '', 'placed' => [], 'meta' => null, 'metaData' => null, 'problem' => null];
         try {
@@ -111,7 +113,7 @@ final class MdxFileConverter
         }
         $placed = [];
         $problem = null;
-        $doc = $this->placeFragments($read['doc'], $fragments, $placed, $problem);
+        $doc = $this->placeFragments($read['doc'], $fragments, $drift, $placed, $problem);
         $out = ['doc' => $doc, 'placed' => $placed, 'meta' => $read['meta'], 'metaData' => $read['metaData'] ?? null] + $out;
         if ($problem !== null) {
             return ['problem' => $problem] + $out;
@@ -140,6 +142,52 @@ final class MdxFileConverter
         }
 
         return $out;
+    }
+
+    /**
+     * The host's legal fragments that can't stand as the shipped component (ruling 1): a copy whose visible text isn't the
+     * shipped text would change what its pages show once <LegalX /> replaces it.
+     *
+     * @param  array<string, string>  $fragments  by content name ({@see fragmentsUnder()})
+     * @return array<string, string> content name => why
+     */
+    public function legalDrift(string $root, array $fragments): array
+    {
+        $out = [];
+        foreach ($fragments as $name => $relative) {
+            if (! self::isLegal($name)) {
+                continue;
+            }
+            $doc = $this->fragmentDoc($root, $relative);
+            if (is_string($doc)) {
+                $out[$name] = $doc;
+            } elseif (self::visibleText($doc) !== self::visibleText(LegalTexts::body(basename($name)))) {
+                $out[$name] = 'its text differs from the shipped legal text';
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * A fragment file's body read as blocks, its header aside, or why the lens can't read it.
+     *
+     * @return array<int, array<string, mixed>>|string
+     */
+    public function fragmentDoc(string $root, string $relative): array|string
+    {
+        [, $body] = self::split((string) file_get_contents(rtrim($root, '/').'/'.$relative));
+        try {
+            return $this->lens->read($body)['doc'];
+        } catch (ValidationException|\RuntimeException $failure) {
+            return 'the lens cannot read it: '.$this->message($failure);
+        }
+    }
+
+    /** The text a reader sees, runs of whitespace folded: what the safety check compares (ruling 1). */
+    public static function visibleText(array $nodes): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', self::text($nodes)));
     }
 
     /** The tag a fragment becomes: a shipped legal text's component, or the studly form of a host fragment's file name. */
@@ -219,7 +267,7 @@ final class MdxFileConverter
      * @param  array<string, string>  $fragments  by content name
      * @param  array<string, string>  $placed  each fragment placed, with its component (out)
      */
-    private function placeFragments(array $nodes, array $fragments, array &$placed, ?string &$problem): array
+    private function placeFragments(array $nodes, array $fragments, array $drift, array &$placed, ?string &$problem): array
     {
         foreach ($nodes as $i => $node) {
             if (($node['kind'] ?? null) !== 'block') {
@@ -234,12 +282,18 @@ final class MdxFileConverter
                     continue;
                 }
                 $legal = self::isLegal($name);
-                if (! $legal && ! isset($fragments[$name])) {
+                // A legal tag too: with no host copy, the shipped text would appear where the page showed none.
+                if (! isset($fragments[$name])) {
                     $problem ??= "it names the fragment {$name}, which no file under the content root defines";
 
                     continue;
                 }
                 $component = self::componentFor($name);
+                if (isset($drift[$name])) {
+                    $problem ??= "it names the legal fragment {$name}, but <{$component} /> would change what it shows: {$drift[$name]}";
+
+                    continue;
+                }
                 // A tag names one component: another fragment that would become it makes the page ambiguous. Two copies of
                 // one shipped legal text are that one component, the same text.
                 $rivals = array_filter(array_keys($fragments), fn (string $other) => $other !== $name
@@ -254,7 +308,7 @@ final class MdxFileConverter
 
                 continue;
             }
-            $nodes[$i]['children'] = $this->placeFragments($node['children'] ?? [], $fragments, $placed, $problem);
+            $nodes[$i]['children'] = $this->placeFragments($node['children'] ?? [], $fragments, $drift, $placed, $problem);
         }
 
         return $nodes;

@@ -5,6 +5,7 @@ namespace Splicewire\Beam\Mdx\Tests\Convert;
 use Illuminate\Support\Str;
 use Splicewire\Beam\Mdx\Convert\MdxFileConverter;
 use Splicewire\Beam\Mdx\Doctor\UnusedFragmentAudit;
+use Splicewire\Beam\Mdx\Legal\LegalTexts;
 use Splicewire\Beam\Mdx\Lens\MdxLens;
 use Splicewire\Beam\Mdx\Tests\TestCase;
 
@@ -27,7 +28,9 @@ class MdxFileConverterTest extends TestCase
         $this->root = sys_get_temp_dir().'/mdx-convert-'.Str::random(8);
         $this->lens = new FakeLens;
         $this->app->instance(MdxLens::class, $this->lens);
-        $this->file('fragments/legal-engine.mdx', "---\ntitle: Platform\n---\n\nThis site runs on the Splicewire platform.\n");
+        // A host's copy of a shipped legal text: the text the shipped component shows, under the host's own header.
+        $this->file('fragments/legal-engine.mdx', "---\ntitle: Platform\n---\n\n".$this->engine()."\n");
+        $this->lens->register($this->engine()."\n", [$this->p($this->engine())]);
         $this->file('fragments/reading-disclaimer.mdx', "Read this first.\n");
         $this->file('fragments/advisory.mdx', "Not advice.\n");
     }
@@ -110,7 +113,7 @@ class MdxFileConverterTest extends TestCase
         $a = $this->page('a.mdx', '', "<Content name=\"fragments/legal-note\" />\n", [$this->content('fragments/legal-note')]);
         $b = $this->page('b.mdx', '', "<Content name=\"partials/legal_note\" />\n", [$this->content('partials/legal_note')]);
         // Two shipped legal texts under different directories are one component, the same text: not a collision.
-        $this->file('partials/legal-engine.mdx', "This site runs on the Splicewire platform.\n");
+        $this->file('partials/legal-engine.mdx', $this->engine()."\n");
         $this->page('c.mdx', '', "<Content name=\"partials/legal-engine\" />\n", [$this->content('partials/legal-engine')]);
 
         $report = app(MdxFileConverter::class)->convert($this->root, write: true);
@@ -120,6 +123,23 @@ class MdxFileConverterTest extends TestCase
         $this->assertStringContainsString('fragments/legal-note would also become <LegalNote />', $report->leftOut['b.mdx'] ?? '');
         $this->assertSame("<Content name=\"fragments/legal-note\" />\n", file_get_contents($a));
         $this->assertSame("<Content name=\"partials/legal_note\" />\n", file_get_contents($b));
+    }
+
+    public function test_a_legal_fragment_whose_text_has_changed_leaves_its_page_out(): void
+    {
+        // Review of 34327e06 (ruling 1): <LegalPayments /> shows the shipped text, so a host copy that says otherwise can't become it.
+        $this->file('fragments/legal-payments.mdx', "Payments are handled by our own processor.\n");
+        $this->lens->register("Payments are handled by our own processor.\n", [$this->p('Payments are handled by our own processor.')]);
+        $pay = $this->page('pay.mdx', '', "<Content name=\"fragments/legal-payments\" />\n", [$this->content('fragments/legal-payments')]);
+        $gone = $this->page('gone.mdx', '', "<Content name=\"fragments/legal-data-rights\" />\n", [$this->content('fragments/legal-data-rights')]);
+
+        $report = app(MdxFileConverter::class)->convert($this->root, write: true);
+
+        $this->assertSame([], $report->converted);
+        $this->assertStringContainsString('differs from the shipped legal text', $report->leftOut['pay.mdx'] ?? '');
+        $this->assertStringContainsString('no file under the content root defines', $report->leftOut['gone.mdx'] ?? '', 'a legal tag with no host copy would add text the page never showed');
+        $this->assertSame("<Content name=\"fragments/legal-payments\" />\n", file_get_contents($pay));
+        $this->assertSame("<Content name=\"fragments/legal-data-rights\" />\n", file_get_contents($gone));
     }
 
     public function test_a_symbolic_link_is_never_followed_out_of_the_content_root(): void
@@ -160,6 +180,11 @@ class MdxFileConverterTest extends TestCase
         $this->lens->register($body, $doc, $meta, $metaData);
 
         return $this->file($path, $frontmatter.$body);
+    }
+
+    private function engine(): string
+    {
+        return LegalTexts::all()['legal-engine']['text'];
     }
 
     private function file(string $path, string $contents): string
