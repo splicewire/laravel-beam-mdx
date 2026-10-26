@@ -102,6 +102,26 @@ class MdxFileConverterTest extends TestCase
         $this->assertSame("Already canonical.\n", file_get_contents($canonical));
     }
 
+    public function test_two_fragments_that_would_become_one_tag_leave_their_pages_out(): void
+    {
+        // Review of 5e36ce2a: fragments/legal-note and partials/legal_note both become <LegalNote />, so a page would place the wrong one.
+        $this->file('fragments/legal-note.mdx', "One note.\n");
+        $this->file('partials/legal_note.mdx', "Another note.\n");
+        $a = $this->page('a.mdx', '', "<Content name=\"fragments/legal-note\" />\n", [$this->content('fragments/legal-note')]);
+        $b = $this->page('b.mdx', '', "<Content name=\"partials/legal_note\" />\n", [$this->content('partials/legal_note')]);
+        // Two shipped legal texts under different directories are one component, the same text: not a collision.
+        $this->file('partials/legal-engine.mdx', "This site runs on the Splicewire platform.\n");
+        $this->page('c.mdx', '', "<Content name=\"partials/legal-engine\" />\n", [$this->content('partials/legal-engine')]);
+
+        $report = app(MdxFileConverter::class)->convert($this->root, write: true);
+
+        $this->assertSame(['c.mdx'], $report->converted);
+        $this->assertStringContainsString('partials/legal_note would also become <LegalNote />', $report->leftOut['a.mdx'] ?? '');
+        $this->assertStringContainsString('fragments/legal-note would also become <LegalNote />', $report->leftOut['b.mdx'] ?? '');
+        $this->assertSame("<Content name=\"fragments/legal-note\" />\n", file_get_contents($a));
+        $this->assertSame("<Content name=\"partials/legal_note\" />\n", file_get_contents($b));
+    }
+
     public function test_a_symbolic_link_is_never_followed_out_of_the_content_root(): void
     {
         // Review of 83ec8903: the walk followed a link, so --path could rewrite a file outside the root.

@@ -78,7 +78,7 @@ final class MdxFileConverter
             }
             $report->converted[] = $relative;
             foreach ($placed as $fragment => $component) {
-                if (isset(LegalTexts::all()[basename($fragment)])) {
+                if (self::isLegal($fragment)) {
                     $report->legal[$relative][] = $component;
                 } else {
                     $report->hostComponents[$fragment] = $component;
@@ -140,6 +140,18 @@ final class MdxFileConverter
         }
 
         return $out;
+    }
+
+    /** The tag a fragment becomes: a shipped legal text's component, or the studly form of a host fragment's file name. */
+    public static function componentFor(string $fragment): string
+    {
+        return self::isLegal($fragment) ? LegalTexts::componentName(basename($fragment)) : Str::studly(basename($fragment));
+    }
+
+    /** Whether a fragment is one of the four shipped legal texts (d8), wherever the host keeps its copy. */
+    public static function isLegal(string $fragment): bool
+    {
+        return isset(LegalTexts::all()[basename($fragment)]);
     }
 
     public static function isFragment(string $relative): bool
@@ -221,13 +233,22 @@ final class MdxFileConverter
 
                     continue;
                 }
-                $legal = isset(LegalTexts::all()[basename($name)]);
+                $legal = self::isLegal($name);
                 if (! $legal && ! isset($fragments[$name])) {
                     $problem ??= "it names the fragment {$name}, which no file under the content root defines";
 
                     continue;
                 }
-                $component = $legal ? LegalTexts::componentName(basename($name)) : Str::studly(basename($name));
+                $component = self::componentFor($name);
+                // A tag names one component: another fragment that would become it makes the page ambiguous. Two copies of
+                // one shipped legal text are that one component, the same text.
+                $rivals = array_filter(array_keys($fragments), fn (string $other) => $other !== $name
+                    && self::componentFor($other) === $component && ! ($legal && self::isLegal($other)));
+                if ($rivals !== []) {
+                    $problem ??= 'it names the fragment '.$name.', but '.implode(', ', $rivals)." would also become <{$component} />: rename one";
+
+                    continue;
+                }
                 $placed[$name] = $component;
                 $nodes[$i] = ['kind' => 'block', 'name' => $component, 'isComponent' => true, 'props' => [], 'children' => [], 'dynamic' => false];
 
