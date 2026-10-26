@@ -24,11 +24,9 @@ class UnusedFragmentAudit implements DoctorAudit
             return [Finding::inconclusive(self::CHECK, "no MDX content root at {$root}.")];
         }
         $fragments = $pages = [];
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file->isFile() && $file->getExtension() === 'mdx') {
-                $relative = substr($file->getPathname(), strlen($root) + 1);
-                MdxFileConverter::isFragment($relative) ? $fragments[] = substr($relative, 0, -4) : $pages[] = (string) file_get_contents($file->getPathname());
-            }
+        // The converter's walk: no link is followed, nothing outside the root is read.
+        foreach (MdxFileConverter::walk($root)['files'] as $relative) {
+            MdxFileConverter::isFragment($relative) ? $fragments[] = substr($relative, 0, -4) : $pages[] = (string) file_get_contents("{$root}/{$relative}");
         }
         $text = implode("\n", $pages);
         $unused = array_values(array_filter($fragments, fn (string $name) => ! str_contains($text, 'name="'.$name.'"')

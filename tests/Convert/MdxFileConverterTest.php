@@ -102,6 +102,27 @@ class MdxFileConverterTest extends TestCase
         $this->assertSame("Already canonical.\n", file_get_contents($canonical));
     }
 
+    public function test_a_symbolic_link_is_never_followed_out_of_the_content_root(): void
+    {
+        // Review of 83ec8903: the walk followed a link, so --path could rewrite a file outside the root.
+        $outside = $this->root.'-outside';
+        @mkdir($outside.'/dir', 0777, true);
+        file_put_contents($outside.'/target.txt', "<Content name=\"fragments/legal-engine\" />\n");
+        file_put_contents($outside.'/dir/page.mdx', "<Content name=\"fragments/legal-engine\" />\n");
+        $this->lens->register("<Content name=\"fragments/legal-engine\" />\n", [$this->content('fragments/legal-engine')]);
+        symlink($outside.'/target.txt', $this->root.'/linked.mdx');
+        symlink($outside.'/dir', $this->root.'/linked-dir');
+
+        $report = app(MdxFileConverter::class)->convert($this->root, write: true);
+
+        $this->assertSame("<Content name=\"fragments/legal-engine\" />\n", file_get_contents($outside.'/target.txt'), 'a file outside the root, behind a link, is never rewritten');
+        $this->assertSame("<Content name=\"fragments/legal-engine\" />\n", file_get_contents($outside.'/dir/page.mdx'));
+        $this->assertSame([], $report->converted);
+        $this->assertStringContainsString('symbolic link', $report->leftOut['linked.mdx'] ?? '');
+        $this->assertArrayNotHasKey('linked-dir/page.mdx', $report->leftOut, 'a linked directory is not walked');
+        rename($outside, $outside.'.done');
+    }
+
     public function test_the_doctor_names_a_fragment_no_page_includes(): void
     {
         $this->page('about.mdx', '', "<Content name=\"fragments/legal-engine\" />\n<Content name=\"fragments/reading-disclaimer\" />\n", []);

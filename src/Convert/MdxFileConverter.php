@@ -31,13 +31,22 @@ final class MdxFileConverter
     {
         $root = rtrim($root, '/');
         $fragments = $pages = [];
-        foreach ($this->files($root) as $relative) {
+        $report = new MdxConversion;
+        ['files' => $files, 'links' => $links] = self::walk($root);
+        foreach ($links as $relative) {
+            $report->leftOut[$relative] = 'it is a symbolic link, which the conversion never follows';
+        }
+        foreach ($files as $relative) {
             $name = substr($relative, 0, -4);
             self::isFragment($relative) ? $fragments[$name] = $relative : $pages[] = $relative;
         }
-        $report = new MdxConversion;
         $used = [];
         foreach ($pages as $relative) {
+            if (! self::inside($root, $relative)) {
+                $report->leftOut[$relative] = 'it resolves outside the content root';
+
+                continue;
+            }
             $source = (string) file_get_contents("{$root}/{$relative}");
             [$frontmatter, $body] = $this->split($source);
             try {
@@ -71,6 +80,12 @@ final class MdxFileConverter
                 continue;
             }
             if ($write) {
+                // Checked again at the write: the file is still the one under the root that was read.
+                if (! self::inside($root, $relative)) {
+                    $report->leftOut[$relative] = 'it resolves outside the content root';
+
+                    continue;
+                }
                 file_put_contents("{$root}/{$relative}", $converted);
             }
             $report->converted[] = $relative;
@@ -82,6 +97,7 @@ final class MdxFileConverter
                 }
             }
         }
+        ksort($report->leftOut);
         $report->unusedFragments = array_values(array_diff(array_keys($fragments), array_keys($used)));
         sort($report->unusedFragments);
         ksort($report->hostComponents);
@@ -94,21 +110,48 @@ final class MdxFileConverter
         return array_intersect(explode('/', dirname($relative)), self::FRAGMENT_DIRECTORIES) !== [];
     }
 
-    /** @return list<string> every `.mdx` under the root, relative and sorted */
-    private function files(string $root): array
+    /**
+     * Every `.mdx` under the root, relative and sorted, and every `.mdx` that is a symbolic link. The walk never follows a
+     * link (a linked directory is not entered), and a file is collected only when it resolves beneath the root, so the
+     * conversion reads and writes nothing outside it.
+     *
+     * @return array{files: list<string>, links: list<string>}
+     */
+    public static function walk(string $root): array
     {
-        if (! is_dir($root)) {
-            return [];
+        $real = realpath($root);
+        if ($real === false || ! is_dir($real)) {
+            return ['files' => [], 'links' => []];
         }
-        $out = [];
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file->isFile() && $file->getExtension() === 'mdx') {
-                $out[] = substr($file->getPathname(), strlen($root) + 1);
+        $files = $links = [];
+        $entries = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($entries as $entry) {
+            $relative = substr($entry->getPathname(), strlen($root) + 1);
+            if ($entry->isLink()) {
+                if (str_ends_with($relative, '.mdx')) {
+                    $links[] = $relative;
+                }
+
+                continue;
+            }
+            if ($entry->isFile() && $entry->getExtension() === 'mdx' && self::inside($root, $relative)) {
+                $files[] = $relative;
             }
         }
-        sort($out);
+        sort($files);
+        sort($links);
 
-        return $out;
+        return ['files' => $files, 'links' => $links];
+    }
+
+    /** Whether a path under the root is a plain file that resolves beneath the root's real path, never through a link. */
+    private static function inside(string $root, string $relative): bool
+    {
+        $path = "{$root}/{$relative}";
+        $real = realpath($path);
+        $base = realpath($root);
+
+        return ! is_link($path) && $real !== false && $base !== false && str_starts_with($real, rtrim($base, '/').'/');
     }
 
     /** @return array{0: ?string, 1: string} the frontmatter's inner text (null with none) and the body */
