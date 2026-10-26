@@ -145,8 +145,8 @@ final class MdxFileConverter
     }
 
     /**
-     * The host's legal fragments that can't stand as the shipped component (ruling 1): a copy whose visible text isn't the
-     * shipped text would change what its pages show once <LegalX /> replaces it.
+     * The host's legal fragments that can't stand as the shipped component (ruling 1): a copy whose blocks aren't the
+     * shipped text's would change what its pages show once <LegalX /> replaces it.
      *
      * @param  array<string, string>  $fragments  by content name ({@see fragmentsUnder()})
      * @return array<string, string> content name => why
@@ -161,8 +161,8 @@ final class MdxFileConverter
             $doc = $this->fragmentDoc($root, $relative);
             if (is_string($doc)) {
                 $out[$name] = $doc;
-            } elseif (self::visibleText($doc) !== self::visibleText(LegalTexts::body(basename($name)))) {
-                $out[$name] = 'its text differs from the shipped legal text';
+            } elseif (! self::sameBlocks($doc, LegalTexts::body(basename($name)))) {
+                $out[$name] = 'it differs from the shipped legal text in its words, marks, links or code';
             }
         }
 
@@ -184,10 +184,15 @@ final class MdxFileConverter
         }
     }
 
-    /** The text a reader sees, runs of whitespace folded: what the safety check compares (ruling 1). */
-    public static function visibleText(array $nodes): string
+    /**
+     * Whether two block documents render the same (ruling 1: the blocks read are equal), compared canonically with their
+     * inline marks, links and code. A root's `component` declaration is set aside: it names a component and shows nothing.
+     */
+    public static function sameBlocks(array $a, array $b): bool
     {
-        return trim((string) preg_replace('/\s+/u', ' ', self::text($nodes)));
+        $bare = fn (array $doc) => array_map(fn (mixed $node) => is_array($node) ? array_diff_key($node, ['component' => true]) : $node, $doc);
+
+        return self::same($bare($a), $bare($b));
     }
 
     /** The tag a fragment becomes: a shipped legal text's component, or the studly form of a host fragment's file name. */

@@ -142,6 +142,21 @@ class MdxFileConverterTest extends TestCase
         $this->assertSame("<Content name=\"fragments/legal-data-rights\" />\n", file_get_contents($gone));
     }
 
+    public function test_a_legal_fragment_with_the_same_words_but_other_marks_leaves_its_page_out(): void
+    {
+        // Review of 8d8d8e14 (ruling 1 is blocks-read equal): the words match, but the host's copy is bold and the shipped text is not.
+        $text = LegalTexts::all()['legal-ai-processing']['text'];
+        $this->file('fragments/legal-ai-processing.mdx', "**{$text}**\n");
+        $this->lens->register("**{$text}**\n", [$this->block('p', [$this->block('strong', [$this->text($text)])])]);
+        $page = $this->page('ai.mdx', '', "<Content name=\"fragments/legal-ai-processing\" />\n", [$this->content('fragments/legal-ai-processing')]);
+
+        $report = app(MdxFileConverter::class)->convert($this->root, write: true);
+
+        $this->assertSame([], $report->converted);
+        $this->assertStringContainsString('marks, links or code', $report->leftOut['ai.mdx'] ?? '');
+        $this->assertSame("<Content name=\"fragments/legal-ai-processing\" />\n", file_get_contents($page));
+    }
+
     public function test_a_symbolic_link_is_never_followed_out_of_the_content_root(): void
     {
         // Review of 83ec8903: the walk followed a link, so --path could rewrite a file outside the root.
