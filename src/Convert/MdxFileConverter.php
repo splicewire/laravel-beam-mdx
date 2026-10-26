@@ -78,6 +78,7 @@ final class MdxFileConverter
                 file_put_contents("{$root}/{$relative}", $converted);
             }
             $report->converted[] = $relative;
+            $report->printed[$relative] = $converted;
             foreach ($placed as $fragment => $component) {
                 if (self::isLegal($fragment)) {
                     $report->legal[$relative][] = $component;
@@ -90,6 +91,42 @@ final class MdxFileConverter
         $report->unusedFragments = array_values(array_diff(array_keys($fragments), array_keys($used)));
         sort($report->unusedFragments);
         ksort($report->hostComponents);
+
+        return $report;
+    }
+
+    /**
+     * Write a dry run's plan, less the files held back, each with why (EP-42, orch-lead 2026-10-26): laravel-beam-ux writes
+     * a page's file only once its stored page has converted, so a refused page never gets a reprinted file over a row that
+     * still holds source. A held-back file is reported left out, never written.
+     *
+     * @param  array<string, string>  $holdBack  path => why it is not written
+     */
+    public function write(string $root, MdxConversion $plan, array $holdBack = []): MdxConversion
+    {
+        $root = rtrim($root, '/');
+        $report = clone $plan;
+        $report->converted = [];
+        $report->printed = [];
+        foreach ($plan->converted as $relative) {
+            if (array_key_exists($relative, $holdBack)) {
+                $report->leftOut[$relative] = $holdBack[$relative];
+
+                continue;
+            }
+            // Checked again at the write: the file is still the one under the root that was read.
+            if (! self::inside($root, $relative)) {
+                $report->leftOut[$relative] = 'it resolves outside the content root';
+
+                continue;
+            }
+            file_put_contents("{$root}/{$relative}", $plan->printed[$relative]);
+            $report->converted[] = $relative;
+            $report->printed[$relative] = $plan->printed[$relative];
+        }
+        // A held-back page no longer places its components, so only the written ones are reported as placing them.
+        $report->legal = array_intersect_key($plan->legal, array_flip($report->converted));
+        ksort($report->leftOut);
 
         return $report;
     }

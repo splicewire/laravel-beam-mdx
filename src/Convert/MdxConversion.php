@@ -12,6 +12,7 @@ final class MdxConversion
      * @param  array<string, list<string>>  $legal  pages that now place a shipped legal component, by its name
      * @param  array<string, string>  $hostComponents  each host fragment a page includes, with the component it becomes
      * @param  list<string>  $unusedFragments  fragments no page includes: reported, not converted
+     * @param  array<string, string>  $printed  each converted page's file as it is (or would be) written, by path
      */
     public function __construct(
         public array $converted = [],
@@ -20,5 +21,6 @@ final class MdxConversion
         public array $legal = [],
         public array $hostComponents = [],
         public array $unusedFragments = [],
+        public array $printed = [],
     ) {}
 }
