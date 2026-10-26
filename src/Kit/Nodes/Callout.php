@@ -6,7 +6,7 @@ use Schemastud\Blockdoc\Attributes\NodeType;
 use Schemastud\Blockdoc\Blocks\Block;
 
 /** ux-0233 d7: a beam-mdx kit Code Component, rendered by `@splicewire/beam-mdx/kit`'s `Callout`. */
-#[NodeType('Callout', description: 'An admonition (note / tip / warning / danger) with an optional title.')]
+#[NodeType('Callout', description: 'An admonition (note / tip / warning / danger / info) with an optional title.')]
 final class Callout extends Block
 {
     public function category(): ?string
@@ -27,7 +27,7 @@ final class Callout extends Block
             'properties' => [
                 'type' => [
                     'type' => 'string',
-                    'enum' => ['note', 'tip', 'warning', 'danger'],
+                    'enum' => ['note', 'tip', 'warning', 'danger', 'info'],
                     'default' => 'note',
                     'title' => 'Kind',
                 ],

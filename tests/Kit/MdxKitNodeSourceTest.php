@@ -73,7 +73,9 @@ final class MdxKitNodeSourceTest extends TestCase
         $nodes = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], null, 'name');
 
         $this->assertSame(['type', 'title'], array_keys($nodes['Callout']['attrsSchema']['properties']));
-        $this->assertSame(['note', 'tip', 'warning', 'danger'], $nodes['Callout']['attrsSchema']['properties']['type']['enum']);
+        // Every kind `@splicewire/beam-mdx/kit` draws (callout.tsx CalloutType; kit.css styles each). Without `info` the write
+        // refused the flagship's `<Callout type="info">` page when it converted (EP-42 H2 receipt, 2026-10-26).
+        $this->assertSame(['note', 'tip', 'warning', 'danger', 'info'], $nodes['Callout']['attrsSchema']['properties']['type']['enum']);
         $this->assertSame(['heading'], $nodes['SectionLanding']['attrsSchema']['required']);
         $this->assertTrue($nodes['Card']['attrsSchema']['properties']['icon']['x-expression']);
         $this->assertSame(['to'], $nodes['Ref']['attrsSchema']['required']);
