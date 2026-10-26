@@ -105,6 +105,31 @@ class MdxFileConverterTest extends TestCase
         $this->assertSame("Already canonical.\n", file_get_contents($canonical));
     }
 
+    /**
+     * EP-42 (orch-lead, 2026-10-26): a page's file is written only once its stored page has converted, so a page the stored
+     * write refuses never ends up with a reprinted file over a row that still holds source. A dry run's plan therefore
+     * carries each file's text, and the write writes the plan less the files held back.
+     */
+    public function test_a_plan_holds_each_file_s_text_and_a_held_back_file_is_never_written(): void
+    {
+        $about = $this->page('about.mdx', '', "<Content name=\"fragments/legal-engine\" />\n", [$this->content('fragments/legal-engine')]);
+        $other = $this->page('other.mdx', '', "Intro.\n\n<Content name=\"fragments/legal-engine\" />\n", [$this->p('Intro.'), $this->content('fragments/legal-engine')]);
+        $before = [file_get_contents($about), file_get_contents($other)];
+
+        $plan = app(MdxFileConverter::class)->convert($this->root, write: false);
+
+        $this->assertSame(['about.mdx', 'other.mdx'], $plan->converted);
+        $this->assertSame($this->lens->printed([$this->tag('LegalEngine')]), $plan->printed['about.mdx']);
+        $this->assertSame($before, [file_get_contents($about), file_get_contents($other)], 'a plan writes nothing');
+
+        $done = app(MdxFileConverter::class)->write($this->root, $plan, ['other.mdx' => 'its stored page was left out: refused']);
+
+        $this->assertSame(['about.mdx'], $done->converted);
+        $this->assertSame(['other.mdx' => 'its stored page was left out: refused'], $done->leftOut);
+        $this->assertSame($plan->printed['about.mdx'], file_get_contents($about));
+        $this->assertSame($before[1], file_get_contents($other), 'a held-back file is never written');
+    }
+
     public function test_two_fragments_that_would_become_one_tag_leave_their_pages_out(): void
     {
         // Review of 5e36ce2a: fragments/legal-note and partials/legal_note both become <LegalNote />, so a page would place the wrong one.
