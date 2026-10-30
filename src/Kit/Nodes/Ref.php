@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('Ref', description: 'An inline evidence citation: <Ref to="key">the claim</Ref>.', group: 'inline')]
 final class Ref extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'html';
