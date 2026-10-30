@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('Callout', description: 'An admonition (note / tip / warning / danger / info) with an optional title.')]
 final class Callout extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'html';

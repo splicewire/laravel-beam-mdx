@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('FileTree', description: 'A file-structure tree (a `tree` node array or children).')]
 final class FileTree extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'html';

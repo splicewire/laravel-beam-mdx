@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('Terminal', description: 'A terminal / code window with chrome and an optional title.')]
 final class Terminal extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'html';

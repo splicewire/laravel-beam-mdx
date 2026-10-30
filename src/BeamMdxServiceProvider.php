@@ -21,7 +21,7 @@ class BeamMdxServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-beam-mdx')
             ->hasConfigFile('beam/mdx')
-            ->hasCommands([BeamMdxDoctorCommand::class, Console\ConvertCommand::class]);
+            ->hasCommands([BeamMdxDoctorCommand::class, Console\ConvertCommand::class, Console\ExportKitManifestCommand::class]);
     }
 
     public function packageRegistered(): void

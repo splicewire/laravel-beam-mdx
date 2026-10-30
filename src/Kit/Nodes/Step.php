@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('Step', description: 'One step in a Steps procedure; the title is the step heading.')]
 final class Step extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'step';

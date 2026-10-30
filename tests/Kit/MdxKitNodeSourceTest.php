@@ -68,6 +68,16 @@ final class MdxKitNodeSourceTest extends TestCase
         $this->assertSame([], $nodes['Artifact']['admitsChildCategories']);
     }
 
+    public function test_code_components_declare_which_ones_admit_direct_text(): void
+    {
+        $nodes = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], null, 'name');
+
+        $this->assertSame(
+            ['Callout', 'Step', 'Figure', 'Terminal', 'DoctorOutput', 'FileTree', 'Ref'],
+            array_keys(array_filter($nodes, fn (array $node): bool => $node['admitsText'])),
+        );
+    }
+
     public function test_a_components_props_are_its_declared_schema_without_a_node_id(): void
     {
         $nodes = array_column((new MdxKitNodeSource)->manifest('content')['nodes'], null, 'name');

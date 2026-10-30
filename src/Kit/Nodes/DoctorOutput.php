@@ -9,6 +9,11 @@ use Schemastud\Blockdoc\Blocks\Block;
 #[NodeType('DoctorOutput', description: 'A structured doctor / diagnostic report (raw text or children).')]
 final class DoctorOutput extends Block
 {
+    public function admitsText(): bool
+    {
+        return true;
+    }
+
     public function category(): ?string
     {
         return 'html';
