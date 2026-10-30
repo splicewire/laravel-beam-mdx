@@ -8,12 +8,18 @@ use Splicewire\Beam\Mdx\Kit\KitManifestExporter;
 /** Export the canonical MDX kit manifest from the server-declared Code Components. */
 final class ExportKitManifestCommand extends Command
 {
-    protected $signature = 'splicewire:beam:mdx:export-kit {--output= : Destination JSON file}';
+    protected $signature = 'splicewire:beam:mdx:export-kit {--write : Write the generated manifest} {--output= : Destination JSON file}';
 
     protected $description = 'Export the MDX kit manifest from its PHP Blockdoc declarations.';
 
     public function handle(KitManifestExporter $exporter): int
     {
+        if (! $this->option('write')) {
+            $this->components->error('Pass --write to deliberately regenerate the manifest.');
+
+            return self::FAILURE;
+        }
+
         $output = (string) $this->option('output');
 
         if ($output === '') {
