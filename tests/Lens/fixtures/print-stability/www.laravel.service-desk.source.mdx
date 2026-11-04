@@ -1,0 +1,72 @@
+---
+title: Build a service desk
+segment: service-desk
+navOrder: 20
+publishedDate: 2026-10-26
+excerpt: Follow one declared request from a Member's create through an Owner's approval and its committed history.
+---
+
+# Build a service desk
+
+Build a team-owned request once, then follow it through the stock resource UI: a Member creates it, a different same-team Owner approves it, and usage and Inspection show the same committed approval. The example composes a declared resource, generated client, authorization and workflow; it adds no replacement dashboard.
+
+## Start with the supplied preview
+
+Use the supplied **local compatibility preview** for setup. Its application source is `5e6e053d5f012c31e4f0246ff8e7179de11d83b7`. Follow the supplied starter chapter `docs/examples/service-desk-compatibility-setup.md`, including the Workflows source binding and matching JS inputs, before running the starter's command:
+
+```bash
+composer setup
+```
+
+The completed local sequence uses these PHP sources. The UX binding supplies the preview APIs before package discovery and the request journey:
+
+| Package | Local source |
+| --- | --- |
+| `splicewire/laravel-beam-ux` | `7843f9f3a354d0a1fe9a515db765aaa2cb9015d4` |
+| `splicewire/laravel-beam-workflows` | `1ad7270f5d5d5689ab19e7f04cc44817a0d3fbb9` |
+
+Use that compatibility setup chapter and retain the preview's private Composer lock and isolated package caches. That lock still records UX `d1c3efa5e8489feb2ba1d37845e64ea3b41735d9` and Workflows `b328f2de`; the physical local sources above are explicit overlays. These unpublished inputs require the supplied source packet. Remote main and registry packages have their own release histories.
+
+The accepted local receipt records a successful `composer setup` retry after the Workflows binding. The UX compatibility binding and package discovery then produced HTTP 200 for the home page and authenticated Service desk. A fresh Member created a request; a **different Owner** approved it in a separate session. Reload and stored actor IDs confirmed the persisted approval. The initial missing-interface and preview-API failures remain with that receipt, so its result is qualified to the prepared local sources.
+
+The starter's `docs/examples/service-desk-current-preview.md` and `examples/service-desk-preview-inputs.json` describe the broader request, usage and Inspection walkthrough with their own matching input cohort. Keep that cumulative preview's preparation separate from the B21 compatibility setup above. The historical six-checkout recipe and HTTP proof remain in `docs/examples/service-desk-local-proof.md`. These chapter filenames are source references, not additional website routes.
+
+## Follow one request
+
+1. Sign in as the fresh preview's Member. Open **Service desk → Service requests → New**, enter a Title and choose Status, then Save.
+2. Open the request's detail. ID, Title, Status and Approval use the read projection; the detail has no Save or Delete. Approval starts pending.
+3. Sign in as a different authorized Owner on the same team and approve that request once.
+4. Reload the detail, **Approval usage** and the request's **Inspection**. Quantity moves from zero to one; the same approval fact, actor, time and historical definition explain the change.
+
+Use the preview chapter's native actors and selected-team setup. Keep their credentials private inside the disposable root. Usage here counts committed workflow facts; it does not bill a customer or debit a wallet.
+
+The chapter also describes invalid values, forged ownership fields, foreign or removed membership, conflicts and a genuine source failure with Retry. Exercise those cases on the fresh host: an empty list, hidden button or disabled field does not establish server authorization.
+
+## Read the declaration
+
+`app/Data/ServiceRequestData.php` declares the `#[ParticleResource]`: its Eloquent `App\Models\ServiceRequest` backing, `ServiceRequestData` read DTO and `ServiceRequestInputData` input/edit DTO. The selected interactions are create, list and read-only detail. Editing and deletion are not enabled.
+
+Input is Title, up to 200 characters, and Status, either `open` or `closed`. Output includes ID and Approval. Team and creator IDs come from server preparation, never from form input. `ServiceRequestTeam` and the resource scope check current selected-team membership.
+
+The host supplies the model migration, resource realm placement, middleware, navigation and console mount. Attribute discovery removes a per-resource registry call; it does not create storage or grant access. The generic resource endpoint and the browser console remain separate mounts.
+
+## Keep the client and UI on the same contract
+
+The starter's generated routes and Data types describe the resource endpoint. Frame consumes the resource manifest, schema and matching transport to render its create/list/detail surfaces. The preview chapter owns generation and build instructions for its exact package inputs.
+
+Create requests the write schema for Title and Status. Detail requests read purpose explicitly and pairs it with the read DTO's ID/Title/Status/Approval projection. A disabled legacy editor alone retains write purpose; it does not select a read schema. Failed read-schema loading offers Retry rather than silently switching to a write form.
+
+Schema metadata and record access have different authority. In this example, an authenticated outsider may read global DTO metadata but cannot read another team's request. Server validation, live membership and record policy still apply to each operation. Generated TypeScript types do not replace runtime validation.
+
+## Follow the owning references
+
+[Schemastud Frame](https://schemastud.io/docs/frame) owns schema purpose, shell composition, transport and backing contracts. Its [independent examples](https://schemastud.io/docs/examples) include Frame without a Beam application. The supplied source counterparts are `frame/docs/schema-purpose.md` in the JS repository and `docs/resource-schemas.md` in the PHP Frame package.
+
+For the application capabilities around this resource, continue with:
+
+- [Compose application capabilities](/beam/docs/laravel/capabilities) — accounts, tenancy, workflows, authoring and commerce ownership.
+- [Frame: the resource registry](/beam/docs/laravel/frame) — resource declarations and host composition.
+- [Workflows](/beam/docs/laravel/workflows) — governed transitions and durable facts.
+- [Operate and publish](/beam/docs/laravel/operations) — inspection, drafts, releases and recording recovery.
+
+The supplied starter's `docs/examples/` chapters cover invitations, entitlements, tenancy, operator inspection, providers, wallets, marketplaces and MDX as separate continuations. Theme authoring uses Save draft and explicit fixed-version Publish; it is not required for this request journey. The core trail does not require a physical tenant, wallet, marketplace or Git recorder, and does not establish complete host or package health.

@@ -1,0 +1,86 @@
+# Conduit capabilities
+
+A **Conduit** is a tenant's connection to something outside Tower: an MCP server, an HTTP API, another agent, a search index, a bring-your-own model key. `conduit` holds the **tools** those connections project, for the tenant whose context is active right now. Agents and circuits call them by name, the same way they call Tower's built-in capabilities.
+
+This page also introduces the other two `conduit.*` registries:
+
+- [`conduit.providers`](conduit.providers): the provider _definitions_ a Conduit names, such as `mcp.http` or `internal.agent`. Process-wide and static.
+- [`conduit.model-credentials`](conduit.model-credentials): the tenant's bring-your-own model credentials, projected per tenant like this one.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `conduit`
+- **Entries:** `Rushing\Popcorn\Contracts\Invocable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `100` (display order, ascending)
+- **Declared by:** `Splicewire\Tower\Conduit\ConduitCapabilityRegistry`
+
+{/* registry-facts:end */}
+
+## This registry is per tenant
+
+**The registry object lives for the whole process. Its entries belong to one tenant at a time.**
+
+Tower's `ConduitHydrator` fills it whenever a tenant's context starts and empties it when that context ends. The tenancy bootstrapper calls the hydrator on every switch: per request, and per job on a queue worker. On hydrate, the hydrator first resets, then reads the tenant's Conduits (its own, federated grants from other tenants, and runner transforms) and asks each one's provider for its contributions. On revert, it forgets everything it projected, by registrant. When a Conduit is saved, enabled, disabled or deleted inside the active tenant, the hydrator re-projects straight away, within the same request.
+
+Outside a tenant context, central routes and console commands that never initialize a tenant included, this registry holds none of any tenant's tools.
+
+That gives anyone registering into it four rules:
+
+1. **Contribute through a Conduit provider, never by calling `register()` at boot.** An entry you register directly is outside the hydrator's ledger. It is never torn down, so every tenant on that worker sees it.
+2. **Every projected entry carries its registrant.** Teardown is `forgetBy()` with the registrant the hydrator stamped, `Splicewire\Tower\Conduit\ConduitHydrator:<tenant>:<publisher>:<conduitId>`. The registrant is the selector that removes the entry, not decoration.
+3. **Don't keep what you read.** A lookup result, or a list of tool names, is only valid for the tenant it was read under. Don't cache it in a singleton or a static.
+4. **The registry stays a singleton.** The registry is bound with `singleton()`, and so is the hydrator that remembers what it projected. Rebinding either as `scoped()` loses that memory, and the next tenant would inherit the last one's tools. The registry is described once, at boot. What changes per tenant is only what is inside it.
+
+## How a tool gets here
+
+A provider that offers tools implements `ProjectsCapabilities` and uses the `ContributesCapabilities` trait:
+
+```php
+use Rushing\Popcorn\Contracts\Invocable;
+use Splicewire\Tower\Circuit\Capabilities\CapabilityManifest;
+use Splicewire\Tower\Conduit\Attributes\ConduitProvider;
+use Splicewire\Tower\Conduit\ConduitRef;
+use Splicewire\Tower\Conduit\Contracts\ProjectsCapabilities;
+use Splicewire\Tower\Conduit\Projection\ContributesCapabilities;
+
+#[ConduitProvider]
+class AcmeConduitProvider implements ProjectsCapabilities
+{
+    use ContributesCapabilities;
+
+    public function key(): string { return 'acme.api'; }
+
+    /** The tools, by bare name, for one connected instance. */
+    public function capabilities(ConduitRef $conduit): array { /* list<CapabilityManifest> */ }
+
+    /** The callable behind one tool. Read credentials when it is invoked, not here. */
+    public function invocable(ConduitRef $conduit, CapabilityManifest $manifest): Invocable { /* … */ }
+
+    // authScheme(), costModel(), metadata() …
+}
+```
+
+For each tool, Tower's `CapabilityLadder` qualifies the name to `{tool}#{conduitId}`, stores the tool's manifest (ports, surfaces, entitlement), and registers the invocable here under the address `<conduitId>.<tool>`. Conduit ids are UUIDs, so they are always legal key segments. People refer to a tool as `{provider}:{alias}.{tool}`. The ladder resolves that reference to one Conduit, and refuses it loudly as _ambiguous_, _unresolvable_ or _disabled_ rather than guessing.
+
+A disabled Conduit still projects its tools, as tombstones. They resolve by name and throw `disabled` when invoked, so a circuit that uses one fails with the real reason. Tombstones never appear in a tool picker.
+
+Always go through the ladder. A tool registered here without its manifest is invisible to every surface that lists tools.
+
+## Reading it
+
+Callers almost never read this registry directly. `CapabilityLadder::invoke($name, $input)` resolves a built-in name, a qualified identity or a Conduit reference, and looks in this tenant overlay before [Tower's built-ins](circuit.capabilities). `forSurface()` lists what a surface such as the chat tool picker or the circuit editor may offer.
+
+## Other registries a Conduit can fill
+
+Tools are one kind of contribution. A provider's `contributions()` can also put entries into other forgettable registries through the same per-tenant scope, with the same teardown: [`conduit.model-credentials`](conduit.model-credentials), [`determination.corpus.streams`](determination.corpus.streams), prism-plus's [`prism-plus.capabilities`](prism-plus.capabilities) (retrieval and rerank sources), and `grounding.pull.<name>` in [`grounding`](grounding). A registry that can't forget entries can't take a tenant contribution: Tower refuses to project into one.
+
+## Related registries
+
+- [`conduit.providers`](conduit.providers) — the provider definitions behind each Conduit.
+- [`circuit.capabilities`](circuit.capabilities) — Tower's built-in capabilities, which this overlay shadows.
+
+## Going deeper
+
+[Popcorn registries](/beam/docs/foundations/registries) explains roots, keys and duplicate policies. The registry's source is [`ConduitCapabilityRegistry`](https://github.com/splicewire/tower/blob/main/src/Conduit/ConduitCapabilityRegistry.php); its lifetime is owned by [`ConduitHydrator`](https://github.com/splicewire/tower/blob/main/src/Conduit/ConduitHydrator.php).

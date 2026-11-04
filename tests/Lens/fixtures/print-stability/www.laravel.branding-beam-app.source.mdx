@@ -1,0 +1,104 @@
+---
+title: Branding a Beam app
+segment: branding-beam-app
+navOrder: 70
+publishedDate: 2026-10-26
+excerpt: Make a Beam app look like yours — brand tokens in one CSS file, layered over Tailwind and shadcn.
+---
+
+# Branding a Beam app
+
+A Beam app ships with a neutral, working look. Rebranding it doesn't mean touching components — it means changing a small set of **tokens** in one place and letting the rest of the app inherit. This guide is the stack-blind version of that approach: a brand-in-one-file discipline layered over Tailwind and shadcn, so a rebrand is a checklist, not a refactor.
+
+The principle is _brand in one file_. When every color, radius, and font reference resolves through a token, changing the brand is changing the tokens — and everything downstream follows without you hunting through components.
+
+## Where the brand lives
+
+Keep the brand surface small and findable. A rebrand touches a handful of files, and no more:
+
+<FileTree>
+
+- resources/css
+  - app.css — the token layers: @theme + :root, plus dark overrides
+- public
+  - favicon.svg — the mark, inlined so it paints on first frame
+  - site.webmanifest — app name, theme color, icon references
+- resources/views
+  - app.blade.php — the theme-color meta + the anti-flash script
+
+</FileTree>
+
+Everything else — components, pages, the shadcn primitives — reads from those tokens. You edit the surface above; the app inherits.
+
+## The two token layers
+
+Brand tokens live in two cooperating layers, and keeping them straight is the whole trick:
+
+- **`@theme`** — the Tailwind layer. Tokens declared here become utility classes: a brand color defined as a theme token is usable as a `bg-` or `text-` utility across the app. This is where the palette, the type scale, and the radii enter Tailwind's vocabulary.
+- **`:root`** — the CSS-variable layer that shadcn's components read. shadcn primitives resolve their surface, foreground, border, and accent from CSS variables; you point those variables at your brand values so every dialog, button, and card picks up the brand without a per-component edit.
+
+<Callout type="tip">
+
+Define your palette once as raw values, then have both layers reference them. The `@theme` tokens feed Tailwind utilities; the `:root` variables feed shadcn. Keeping a single source below both layers is what makes a rebrand a one-place change.
+
+</Callout>
+
+Dark mode is the same layers under a `.dark` (or media-query) override: the same token _names_, different _values_. Components don't branch on theme — they read the token, and the token changes underneath them.
+
+## The favicon anti-flash
+
+A favicon and theme color that arrive a frame late read as a flash of the wrong brand. Two moves close that gap:
+
+- **Inline the mark.** Reference an inlined favicon (an SVG or a data URI) so the browser paints it on the first frame instead of waiting on a second request.
+- **Set the theme color before paint.** Put the theme-color meta in the document head, and if the app supports dark mode, run a tiny inline script that sets the correct theme _before_ first paint — so the chrome never flashes light then snaps dark.
+
+## The rebrand checklist
+
+Rebranding an app is walking these steps in order. Each one is a token edit, not a component rewrite:
+
+<Steps>
+
+<Step title="Set the palette">
+
+Replace the brand values at the single source below both layers — primary, accent, neutrals, and the semantic states. Because the `@theme` and `:root` layers reference these, both Tailwind utilities and shadcn components shift at once.
+
+</Step>
+
+<Step title="Set type and radii">
+
+Point the font tokens at your typeface and set the radius scale. These flow through the same layers, so headings, body, and the rounding on every card and button update together.
+
+</Step>
+
+<Step title="Swap the marks">
+
+Replace the favicon and any logo assets, and update the app name and icon references in the web manifest. Keep the favicon inlined so it survives the first-frame test.
+
+</Step>
+
+<Step title="Set the theme color and anti-flash">
+
+Update the theme-color meta and confirm the pre-paint theme script matches your light and dark values. Load the app cold and watch the first frame — no flash of the old chrome.
+
+</Step>
+
+<Step title="Verify in both themes">
+
+Walk the app in light and dark. Because everything read from tokens, a correct token set means a correct app — if something is still off-brand, it's a component holding a literal value instead of a token. Fix the literal, not the component's every use.
+
+</Step>
+
+</Steps>
+
+<Callout type="note">
+
+If a rebrand touches more than the brand surface — if you're editing colors inside components — that's the signal a literal escaped the token layers. Route it back through a token and the next rebrand stays a checklist.
+
+</Callout>
+
+## See also
+
+- [Beam on Laravel](/beam/docs/laravel) — the app you're branding.
+- [Set up a Beam app](/beam/docs/laravel/setup) — get a running app before you rebrand it.
+- [Tailwind CSS](https://tailwindcss.com/docs) — the `@theme` layer and the utility model.
+- [shadcn/ui](https://ui.shadcn.com/docs/theming) — the CSS-variable theming the `:root` layer drives.

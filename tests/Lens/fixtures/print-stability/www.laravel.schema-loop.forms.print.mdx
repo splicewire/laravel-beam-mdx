@@ -1,0 +1,76 @@
+# Schema forms: validate → store
+
+Station two of [the schema loop](/beam/docs/laravel/schema-loop) is a **door**. A submission either conforms to the registered shape and passes through as validated data, or it comes back with errors and nothing is stored. `schemastud/laravel-schema-forms` is that door. Like station one it is foundation code (one of the general-purpose `schemastud` packages Beam builds on) — it validates against a local shape and writes to your database; it reaches none of Splicewire's paid services and calls nothing remote.
+
+## Install
+
+<Terminal title="bash">
+
+```bash
+php artisan laravel-schema-forms:install
+```
+
+</Terminal>
+
+<Callout type="note">
+
+This is a **bare** foundation command — `laravel-schema-forms:install` (or the short `schema-forms:install`), never a `splicewire:*` namespace. The Beam doctor (`php artisan splicewire:beam:doctor`, which checks an install against what Beam needs) can confirm it landed.
+
+</Callout>
+
+## Bind a form to a DTO
+
+A schema form does not carry its own field list. It **binds** to a registered Data DTO (data transfer object: a typed PHP class that describes the data) and draws its fields from that shape — the same shape [the registry](/beam/docs/laravel/schema-loop/schema-registries) resolved. Bind by the DTO's class or its resolved form key:
+
+```php
+$form = SchemaForm::for(SignupData::class);
+```
+
+Because the form reads the DTO's shape, its fields, types, and constraints are exactly the DTO's — there is no second place to keep in sync. Rename a property on the DTO and the form moves with it.
+
+## The validate → store door
+
+A submission runs the door in two beats, and only a passing first beat reaches the second:
+
+<Steps>
+
+<Step title="Validate against the shape">
+
+Incoming input is checked against the bound shape — types, required fields, and every constraint the DTO declared. Fail, and you get structured errors keyed to fields; nothing is written. The half-valid submission never leaks past this beat.
+
+</Step>
+
+<Step title="Store the validated data">
+
+On pass, the input is read back into a fully typed DTO instance (the registry's reverse direction) and handed to the store step as real, typed data — ready to become a record, never a loose array.
+
+</Step>
+
+</Steps>
+
+```php
+$result = $form->validate($request->all());
+
+if ($result->fails()) {
+    return back()->withErrors($result->errors());
+}
+
+$data = $result->data();   // a typed SignupData instance
+$data->store();            // hands off to station four
+```
+
+<Callout type="tip">
+
+The door's contract is total: what comes out of a passing `validate` already conforms to the shape. The store step therefore never re-checks — it trusts the door, and the record it writes is guaranteed to match the version it was validated against.
+
+</Callout>
+
+## What the door does _not_ do
+
+The door validates and stores. It does not render — that is the [renderer stack's](/beam/docs/laravel/schema-loop/renderers) job on the React side — and it does not decide what a stored row _is_; that belongs to [`SchemaRecord`](/beam/docs/laravel/schema-loop/persistence). Keeping the door narrow is what keeps each station swappable.
+
+## Where to go next
+
+- [Persistence & SchemaRecord](/beam/docs/laravel/schema-loop/persistence) — where validated data lands as a row.
+- [The renderer stack](/beam/docs/laravel/schema-loop/renderers) — draw the same shape on the client.
+- [Data schema registries](/beam/docs/laravel/schema-loop/schema-registries) — the DTO this form binds to.

@@ -1,0 +1,86 @@
+# Screening capabilities
+
+`screening` holds the invocables behind content screening: the screen pass itself, under `screening.screen`, and the **term sources** it reads, under `screening.source.<type>`. The screening kernel matches text, or a whole outbound payload, against denylists. It ships no terms of its own and registers nothing here. Your host supplies the terms by registering a source, and decides whether to expose the screen pass at all.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `screening`
+- **Entries:** `Rushing\Popcorn\Contracts\Invocable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `100` (display order, ascending)
+- **Declared by:** `Splicewire\Screening\ScreeningRegistry`
+
+{/* registry-facts:end */}
+
+## What a source is
+
+A source is an `Invocable` keyed `screening.source.<type>`, where `<type>` is a name you choose (`local`, `gazetteer`, `catalog`). The kernel calls each one with `{rule_set}` and expects `{terms: string[]}` back:
+
+```php
+use Rushing\Popcorn\Invocables\LocalInvocable;
+
+new LocalInvocable(
+    'screening.source.local',
+    fn (array $input): array => ['terms' => config("screening.sources.local.{$input['rule_set']}", [])],
+    'Terms for a rule set, from this host\'s config.',
+);
+```
+
+When a screen runs, the kernel's `PopcornScreeningSourceResolver` lists every child of `screening.source` in this registry, invokes each one in registration order, and **unions** the terms. Two sources with different types both apply. Registration order affects only the order in which findings come back.
+
+The resolver asks this registry for its own children, segment by segment, so it sees only keys under `screening.source`. A capability another package names `screening.sources.x` is not under that branch, and is never read as a source.
+
+## Registering a source
+
+The kernel describes this registry when it boots, so register from your provider's `boot()`. You don't need to name the kernel's class. Ask the registry index which registry owns the key, and register there:
+
+```php
+use Rushing\Popcorn\Registries\RegistryIndex;
+
+public function boot(): void
+{
+    $index = $this->app->make(RegistryIndex::class);
+
+    $index->ownerOf('screening.source.local')
+        ->register('screening.source.local', new LocalTermsSource($terms), by: self::class);
+}
+```
+
+Use `ownerOf($key)->register(...)`. Calling `RegistryIndex::register()` directly is not the same thing: it files your source in the index's own list of registries and leaves `screening` empty, so every screen then passes clean.
+
+Two outcomes are deliberately different:
+
+- **No sources registered** is a clean pass. Nothing claimed to screen, so nothing failed to.
+- **A source that throws, or answers without a `terms` list of strings**, stops the screen with `UnresolvableScreeningSource`. A rule set that is only partly applied must not look like a clean result.
+
+Terms are fetched once per rule set per request or job, not once per string in the payload. A host that edits its term table sees the change on the next request.
+
+## Exposing the screen pass
+
+`ScreenInvocable` (name `screening.screen`) is the port a satellite calls to screen through this kernel without naming it. The kernel binds the class but does not register it, because a package that adds itself to every host's capabilities just by being installed would change what resolves everywhere. Register it in the host that wants it:
+
+```php
+use Splicewire\Screening\ScreenInvocable;
+
+$index->ownerOf(ScreenInvocable::NAME)
+    ->register($this->app->make(ScreenInvocable::class), by: self::class);
+```
+
+It takes `{text, rule_set}` or `{payload, rule_set, exclusions[]}`, and answers `{findings[], detectors[]}`. The detector list records which detectors ran, so a pass made while a detector was missing can be told apart from a clean one.
+
+## Detectors are not registered here
+
+The denylist detector, and any detector you add, live in `DetectorRegistry`, which is a container binding rather than a popcorn registry. Add yours by extending the binding, so it survives the per-request rebuild:
+
+```php
+$this->app->extend(DetectorRegistry::class, fn ($detectors) => $detectors->register(new GazetteerDetector(/* … */)));
+```
+
+## Related registries
+
+- [`grounding`](grounding) — the grounding kernel's source resolvers, the model this registry follows.
+
+## Going deeper
+
+[Popcorn registries](/beam/docs/foundations/registries) explains roots, keys and duplicate policies. The registry's source is [`ScreeningRegistry`](https://github.com/splicewire/laravel-screening-kernel/blob/main/src/ScreeningRegistry.php), and its reader is [`PopcornScreeningSourceResolver`](https://github.com/splicewire/laravel-screening-kernel/blob/main/src/PopcornScreeningSourceResolver.php).

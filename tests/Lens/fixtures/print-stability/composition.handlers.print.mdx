@@ -1,0 +1,55 @@
+# Generation handlers
+
+`composition.handlers` holds the **handler classes** a host configures for named generation capabilities. A grammar beat can name a handler, as in `x-generate: outline`. This registry answers which class that name means, and the engine turns that class into the invocable it actually calls at [`composition`](composition). The two roots answer different questions: this one holds the host's configuration, and `composition` holds the live capabilities.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `composition.handlers`
+- **Entries:** any value (`mixed`)
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `43` (display order, ascending)
+- **Declared by:** `Splicewire\Composition\Generation\HandlerRegistry`
+
+{/* registry-facts:end */}
+
+## Three branches under one root
+
+Entries sit in three branches, one per kind of capability, and each kind expects a different contract:
+
+| key                                      | entry                                     |
+| ---------------------------------------- | ----------------------------------------- |
+| `composition.handlers.generate.<handle>` | a class-string of a `GenerateHandler`     |
+| `composition.handlers.ground.<handle>`   | a class-string of a `GroundHandler`       |
+| `composition.handlers.persist.<handle>`  | a class-string of a `DocumentPersistence` |
+
+Those three contracts have nothing in common, so the declared entry type is honestly "any value".
+
+## Where entries come from
+
+From the host's config, read the first time the registry is used:
+
+```php
+// config/splicewire/composition.php
+'handlers' => [
+    'generate' => ['outline' => \App\Composition\OutlineGenerator::class],
+    'ground' => [],
+    'persist' => [],
+],
+```
+
+Handles are kebab-case key segments. A handle in your own config that isn't a legal key fails at first read rather than going quietly unreachable. The built-in defaults need no entry here. Code can also register directly, with a branch-relative key such as `generate.outline` or the absolute one.
+
+## What happens on dispatch
+
+When a beat names a handle, the engine looks it up in the matching branch. A name nobody configured fails loudly, and a handle that isn't even a legal key fails the same way, as unconfigured. The first time a configured handle is asked for, the engine wraps its class as a local invocable at `composition.<kind>.<handle>` and registers it there, unless something already holds that name. So a host can still swap a configured handler for a remote one by registering it at `composition` first.
+
+Ground is the one special case. A string `x-ground` that doesn't match a configured ground handle is treated as a key into the run's grounding snapshot, which the default ground capability reads.
+
+## Related registries
+
+- [Composition capabilities](composition), where the configured classes become invocables.
+
+## Going deeper
+
+The registry's source is [`HandlerRegistry`](https://github.com/splicewire/laravel-composition-engine/blob/main/src/Generation/HandlerRegistry.php).

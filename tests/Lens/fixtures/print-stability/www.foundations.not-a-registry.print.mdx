@@ -1,0 +1,23 @@
+# What is not a registry
+
+Once you have met [popcorn registries](/beam/docs/foundations/registries) you will start seeing them everywhere — and you should resist, because the family deliberately uses several other mechanisms where they fit better. Knowing which seam you are looking at saves you hunting for a registry that does not exist, and keeps you from inventing one where another mechanism is already doing the job.
+
+A registry fits when **many contributors add named entries that are read back by key**. Each of the following fails that test in its own way.
+
+**Container bindings.** A package that ships an interface (a port) also ships its default implementation, and a host customizes by rebinding — replacing the default, or wrapping it with a decorator. At any moment one implementation answers per application, which is exactly what a binding is and a registry is not: there are no named entries to choose between at call time. The lanes and their rules are spelled out in [host bindings](https://github.com/splicewire/laravel-beam/blob/main/docs/agents/host-bindings.md). The short version for a fresh host: everything resolves out of the box, and you bind only what you customize.
+
+**Route mounting.** Routes go live because your route file says so — `Particle::mount()` and its siblings are explicit calls in code you own. Mounting stays an act of the host rather than a registry side effect, because route order and middleware are decisions only the host can make.
+
+**Authorization.** Gates and policies are Laravel's own, defined by providers and your application. Registries only use abilities to filter what a reader may see; they never decide them.
+
+**Events.** Listeners are anonymous fan-out: many react, none is addressed by name, and nothing ever resolves "the listener for key X". That is a different shape of seam, and Laravel's event system already owns it.
+
+**Container tags and plain config arrays.** A tag collects every tagged service without keys. A config array holds values whose meaning comes from their position — and when a chain of sources is tried in config order, that order _is_ the contract. Such a fallback chain was formally ruled not to be a registry, because turning it into one would replace an explicit ordering with registration-time accident.
+
+## Attributes are not a fourth mechanism
+
+PHP attributes like `#[ParticleResource]` can look like their own integration system. They are not: an attribute of that kind is how an entry gets _into_ a registry. The attribute is scanned at boot and its class registered under the matching root, so the registry stays the mechanism and the attribute is its declaration syntax. [Particles](/beam/docs/foundations/particles) covers the ones you will use most.
+
+## The rule of thumb
+
+Ask what the seam holds. Named entries from many contributors, read by key — a registry. One implementation per application — a binding. An ordered chain — configuration. Anonymous fan-out — events. When you extend the system, reach for the mechanism whose shape matches, and the packages around you will already be using it the same way.

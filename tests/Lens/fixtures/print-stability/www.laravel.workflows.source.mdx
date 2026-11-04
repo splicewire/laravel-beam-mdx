@@ -1,0 +1,191 @@
+---
+title: Workflows: govern a lifecycle in code
+segment: workflows
+navOrder: 80
+publishedDate: 2026-10-26
+excerpt: Attach a governed, versioned lifecycle to any model or schema — implement one contract, register a resolver, done.
+---
+
+# Workflows: govern a lifecycle in code
+
+A **workflow** attaches a governed lifecycle — legal transitions, guards, an audited history — to a _kind of thing_, instead of letting code set a bare `status` string. It is the `splicewire/laravel-beam-workflows` package, and you connect to it rather than build on it: you wire a model (or a registered schema) to a workflow once, and the runtime + the admin UI work for it with no bespoke code.
+
+This page is the code path. The point-and-click side (the Workflows admin screen) is covered in [Using workflows](/docs/using/workflows).
+
+## The four ideas
+
+Everything below rests on four load-bearing design decisions:
+
+- **Type identity is the key.** A workflow binds to a stable _type key_ (`article`, `composition`), not a class name — so a model class and a registered schema can both resolve through the same lookup.
+- **Binding is pick-one, with a generic fallback.** One workflow governs one type. A binding existing _is_ the enable; its absence means the object is simply unmanaged.
+- **Definitions are immutable, versioned data; objects pin; migration is explicit.** Editing a definition forks a new version. An object stays pinned to the version it started on until you migrate it deliberately. This is what makes in-app editing safe.
+- **Guards stay code, referenced by name.** A definition references a guard by name and fills its params; it can never carry executable logic.
+
+## Make a model managed
+
+Implement the `WorkflowManaged` contract and use the trait of the same name (the trait supplies the `status` / `workflow_version` attribute defaults, so you only declare the type key):
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Splicewire\Beam\Workflows\Type\Contracts\WorkflowManaged;
+use Splicewire\Beam\Workflows\Type\Concerns\WorkflowManaged as IsWorkflowManaged;
+
+class Article extends Model implements WorkflowManaged
+{
+    use IsWorkflowManaged;
+
+    public function workflowType(): string
+    {
+        return 'article';
+    }
+}
+```
+
+Add the version pin the object records once it starts running under a definition. In a tenant migration (a tenant is one organisation's private space in your app):
+
+```php
+$table->string('status')->default('draft');
+$table->uuid('workflow_version')->nullable(); // the pinned definition version
+```
+
+A model that declares no type — or whose type has no binding — is **unmanaged**: nothing changes, exactly as before you added workflows.
+
+## Register the guards (they stay code)
+
+A guard is a registered PHP closure that reads the subject's `context` and returns `true` (allow) or a string (block, with the reason). Each guard advertises a **catalog entry** so the editor can offer it — a name, a label, and an optional params schema:
+
+```php
+use Splicewire\Beam\Workflows\Control\GuardRegistry;
+
+app(GuardRegistry::class)->register(
+    'reviewed',
+    fn (object $subject): bool|string => ! empty($subject->context['reviewed'])
+        ? true
+        : 'The article must be reviewed before publishing.',
+    label: 'Reviewed',
+    // Author-set knobs (rendered as fields in the editor); omit for none.
+    paramsSchema: ['type' => 'object', 'properties' => []],
+);
+```
+
+There is no code path by which stored definition data introduces a guard closure — a definition names a guard, and an unknown name fails validation at save.
+
+## Define the workflow and seed it
+
+A definition is a `WorkflowBlueprint`: its places (the states an object can be in), an initial marking (the place it starts in), and transitions with `from`/`to` and an optional guard ref. Seed it as a **system-default lineage** — a built-in definition, with its version history, that a tenant can adopt or fork:
+
+```php
+use Splicewire\Beam\Workflows\Blueprint\WorkflowBlueprint;
+use Splicewire\Beam\Workflows\Definition\DefinitionStore;
+
+app(DefinitionStore::class)->ensureSystemLineage('article.lifecycle', 'Article Lifecycle',
+    WorkflowBlueprint::fromArray([
+        'name' => 'article.lifecycle',
+        'places' => ['draft', 'review', 'published'],
+        'initial' => ['draft'],
+        'transitions' => [
+            ['name' => 'submit', 'from' => 'draft', 'to' => 'review'],
+            ['name' => 'publish', 'from' => 'review', 'to' => 'published', 'guard' => 'reviewed'],
+        ],
+    ]));
+```
+
+`ensureSystemLineage` is idempotent — safe to call from a seeder or a provisioning job so every tenant ships with it. Editing later **forks a new immutable version**; it never rewrites the graph a live object is running under.
+
+## Bind the type to the workflow
+
+The binding is what turns governance on. `params` is the bag your guards read (the generalization of any "require X" flag):
+
+```php
+use Splicewire\Beam\Workflows\Binding\WorkflowBindingRegistry;
+
+app(WorkflowBindingRegistry::class)->bind('article', 'article.lifecycle', [
+    'require_review' => true,
+]);
+```
+
+The registry is in-memory (hydrated at boot). To make a binding **tenant-editable and durable**, persist it to a small tenant table and hydrate the registry from it at boot — that is exactly how compositions do it, and how the Workflows admin screen writes bind/unbind.
+
+## Supply per-record guard context (optional)
+
+If a guard needs a fact only the record knows (how many sub-items are stale, whether it was reviewed), put it on the model — not in a controller — by implementing `ProvidesGuardContext`:
+
+```php
+use Splicewire\Beam\Workflows\Control\Contracts\ProvidesGuardContext;
+
+class Article extends Model implements WorkflowManaged, ProvidesGuardContext
+{
+    // …
+    public function workflowGuardContext(): array
+    {
+        return ['reviewed' => (bool) $this->reviewed];
+    }
+}
+```
+
+Binding params (e.g. `require_review`) are merged automatically — this is only the record-specific context.
+
+## Drive transitions
+
+You never write a transition endpoint. Register a **subject resolver** once — a `kind` slug mapped to a finder — and the generic runtime surface works for the model:
+
+```php
+use Splicewire\Beam\Workflows\Control\SubjectResolverRegistry;
+
+app(SubjectResolverRegistry::class)->register('article', fn (string $id) => Article::find($id));
+```
+
+Then either drive it in PHP:
+
+```php
+use Splicewire\Beam\Workflows\Control\WorkflowActuator;
+
+$result = app(WorkflowActuator::class)->transition($article, 'publish');
+// $result->applied, $result->blockers, $result->marking
+```
+
+…or over HTTP, generically, for **any** registered kind:
+
+```
+GET  /api/v1/workflow-subjects/{kind}/{id}/transitions   → the projection (places, current, available)
+POST /api/v1/workflow-subjects/{kind}/{id}/transition    → { "name": "publish" }
+```
+
+An illegal or guarded move returns a `422` with the reason and writes nothing. Legality lives in the state machine; the marking projects onto your `status` attribute only on success, and the version pins on the first transition.
+
+## The frontend gets the lifecycle UI for free
+
+The projection endpoint feeds the model-blind `<WorkflowStepper>` — the stepper track plus the available-transition buttons. Point it at `workflow-subjects/{kind}/{id}` and it renders your model's lifecycle with no per-model UI. See [Using workflows](/docs/using/workflows) for the authoring/admin side.
+
+## Governing a registered schema instead of a class
+
+A schema-driven record has no class to implement the contract, so it resolves by its schema instead: expose its schema type with `HasSchemaType::xStudType()`, and the schema `$id` itself becomes its type key. The schema key ranks _above_ the class key, with the class as a fallback — so you can govern records of one registered schema with their own workflow while everything else keeps the class-level lifecycle. Binding a schema is then a normal binding keyed by its `$id`.
+
+## Migrating objects to a new version
+
+Because objects pin, moving a cohort onto a newer version is a deliberate, guarded act — a remap of `old place → new place` that aborts with a report if any live marking can't be mapped. Nothing is ever half-migrated:
+
+```php
+use Splicewire\Beam\Workflows\Migration\MarkingMigrator;
+
+$report = app(MarkingMigrator::class)->migrate(
+    'article.lifecycle', $fromVersionId, $toVersionId,
+    placeMap: ['draft' => 'draft', 'review' => 'in_review'],
+    cohort: Article::where('workflow_version', $fromVersionId)->get(),
+    dryRun: true, // preview first; drop to actuate
+);
+```
+
+## Checklist
+
+To make any model governable:
+
+1. `implements WorkflowManaged` (+ the trait) and declare `workflowType()`.
+2. Add a nullable `workflow_version` column.
+3. Register the guards your transitions reference.
+4. Seed the definition lineage (`ensureSystemLineage`).
+5. Bind the type to the lineage.
+6. _(optional)_ `implements ProvidesGuardContext` for record-specific guard inputs.
+7. Register a subject resolver for its `kind`.
+
+That's the whole wiring — no bespoke controller, no per-model endpoint. The reference for every class named here is the [API Reference](/docs/api).

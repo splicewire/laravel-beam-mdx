@@ -1,0 +1,28 @@
+# The layers
+
+Beam, Schemastud and Splicewire are one family of packages written by one team. The three vendor names are not three products competing for your attention; they are three layers of the same stack, split by role. Once you know the roles, every package name in a `composer.json` tells you where it sits and what it is allowed to know about.
+
+```
+your application            the host: your models, your policies, your routes
+│
+├─ splicewire/*             the product layer
+│     laravel-beam …        Beam: the free SaaS application framework
+│     engines & services    Splicewire's paid generation engines and hosted integrations
+│
+├─ schemastud/*             the schema substrate
+│     laravel-data-schemas  a typed data class becomes a JSON Schema and TypeScript types
+│     frame, seam           schema-driven resource screens, forms and widgets
+│
+└─ rushing/*                general-purpose foundations
+      laravel-popcorn …     registries, capability dispatch, filters — no product opinion
+```
+
+- **`rushing/*`** is the foundation shelf: small, general-purpose packages that would make sense in any Laravel application. The one you will meet first is [`rushing/laravel-popcorn`](https://github.com/stephenr85/laravel-popcorn), which supplies the [registries](/beam/docs/foundations/registries) the rest of the family is organized around.
+- **`schemastud/*`** is the schema substrate: it turns an ordinary typed PHP data class into a JSON Schema, generated TypeScript and schema-driven UI. It is independently usable — see [the Schemastud docs](https://schemastud.io/docs) — and it knows nothing about Beam or Splicewire.
+- **`splicewire/*`** is the product layer. [Beam](/beam/docs/laravel) is the free, open SaaS framework built on the two layers below: accounts, tenancy, workflows, resource APIs, UI shells. Splicewire's paid engines and hosted services live beside Beam in the same vendor, as optional services a Beam application can connect to — never as prerequisites.
+
+## The one rule
+
+**Dependencies point downward only.** A `schemastud` package never mentions Beam; a `rushing` package never mentions either; and no layer ever names your application's vocabulary. Your models, your tenants and your domain words exist only in your own code, at the top.
+
+This is why you can enter the stack at any layer. If you only want schemas and forms, take `schemastud/*` and stop. If you are building a SaaS application, take Beam and it brings the layers below along. If you later want Splicewire's paid services, they attach to what you already have. [Install and compose Beam](/beam/docs/laravel/adoption) walks the practical combinations, and [the package reference](/beam/docs/laravel/reference) names what each package owns.

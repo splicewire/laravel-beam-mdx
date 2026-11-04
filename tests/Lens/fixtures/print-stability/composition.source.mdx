@@ -1,0 +1,88 @@
+---
+title: Composition capabilities
+segment: composition
+nav_order: 40
+excerpt: The composition engine's named generation capabilities, and the four registries beneath them.
+---
+
+# Composition capabilities
+
+`composition` is the composition engine's own root. Its entries are **generation capabilities**:
+named popcorn invocables, each an array-in, array-out capability (see
+[popcorn's README](https://github.com/stephenr85/laravel-popcorn#invocables)), that the generation
+interpreter calls by name as it walks a grammar. Because it calls by name, a host can replace any
+capability, say with a tenant's webhook or an MCP tool, and the interpreter doesn't change. Four
+more registries nest beneath this root, and this page also introduces them.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `composition`
+- **Entries:** `Rushing\Popcorn\Contracts\Invocable`
+- **Duplicate keys:** Supersede — a later registration under a taken key replaces the earlier entry, in its place
+- **Population:** Optional — an empty registry is normal
+- **Order:** `100` (display order, ascending)
+- **Declared by:** `Splicewire\Composition\Generation\CompositionInvocableRegistry`
+
+{/* registry-facts:end */}
+
+## The capabilities
+
+The engine's handler registry registers four defaults, each as a local invocable, unless a host has
+already bound that name:
+
+| name | what it does | in → out |
+|---|---|---|
+| `composition.generate.default` | writes one beat of the outline with the structured beat generator | `{beat, context, schema}` → `{block}` |
+| `composition.ground.default` | reads the beat's grounding from the run's snapshot | `{beat, context}` → `{value}` |
+| `composition.persist.default` | saves the document through the profile's own persistence | `{profile, document}` → `{persisted}` |
+| `composition.fuse.default` | merges the grounding sources into one pool, in order | `{sources}` → `{snapshot}` |
+
+A beat whose grammar names a handler, such as `x-generate: outline`, resolves to
+`composition.generate.outline`, and named ground and persist handlers work the same way. The first time that name is asked for, the engine wraps the handler
+class configured for it (see [`composition.handlers`](composition.handlers)) as a local invocable and
+registers it here. Hosts add their own capabilities too. The flagship registers
+`composition.compose-video-from-document` and a `composition.fuse.coherence` fusion strategy, and
+tower registers `composition.render.prepared-video`.
+
+## Replacing a capability
+
+The duplicate policy is **supersede**, and that is how you swap one. Register a remote invocable under a
+default's name and your version answers every beat. If yours is registered first, the engine never
+installs its default; if it comes later, it supersedes the default in place:
+
+```php
+use Rushing\Popcorn\Binding;
+use Rushing\Popcorn\Invocables\RemoteInvocable;
+use Splicewire\Composition\Generation\CompositionInvocableRegistry;
+
+$this->app->make(CompositionInvocableRegistry::class)->register(
+    new RemoteInvocable('generate.default', Binding::Webhook, $transport, 'https://tenant.example/generate'),
+);
+```
+
+Names go in relative to the root (`generate.default` here is `composition.generate.default`), and the
+absolute spelling works too.
+
+## The registries beneath this root
+
+- [`composition.profiles`](composition.profiles): the **media** the engine can render. A composition
+  profile says what positions mean (prose order, time or musical bars), how many lanes a document
+  has and how they combine.
+- [`composition.generative-profiles`](composition.generative-profiles): the generation side of a
+  medium, such as its node types, renderer, auditor, persistence and the noun its prompts use.
+- [`composition.handlers`](composition.handlers): the host's configured handler classes for named
+  generate, ground and persist capabilities. Those classes become the invocables on this page.
+- [`composition.llm-roles`](composition.llm-roles): a slot for the host's named language-model roles.
+
+None of the four is filled by the engine itself. The engine ships no media of its own; the host
+lists the profiles from the packages it installs.
+
+## Going deeper
+
+[Popcorn registries](/beam/docs/foundations/registries) explains roots, keys and duplicate policies in
+general. The engine's [README](https://github.com/splicewire/laravel-composition-engine#readme)
+covers the six primitives and the recursive generation the capabilities serve. The registry's source
+is
+[`CompositionInvocableRegistry`](https://github.com/splicewire/laravel-composition-engine/blob/main/src/Generation/CompositionInvocableRegistry.php),
+and the defaults are registered by
+[`HandlerRegistry`](https://github.com/splicewire/laravel-composition-engine/blob/main/src/Generation/HandlerRegistry.php).

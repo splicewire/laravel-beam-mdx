@@ -1,0 +1,73 @@
+---
+title: Augmentation loop stages
+segment: music.loop
+nav_order: 100
+excerpt: The six steps the music augmentation loop runs on every pass, each an adapter onto a capability.
+---
+
+# Augmentation loop stages
+
+`music.loop` holds the six **stages** of the music augmentation loop. The loop realises a brief,
+measures the result against its own MIDI grid, keeps the best pass and refines the next one. Each
+stage is a popcorn invocable (an array-in, array-out capability; see
+[popcorn's README](https://github.com/stephenr85/laravel-popcorn#invocables)), and each one is an
+**adapter**: it calls a capability that lives somewhere else, so the stage itself holds no music
+logic.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `music.loop`
+- **Entries:** `Rushing\Popcorn\Contracts\Invocable`
+- **Duplicate keys:** Reject — registering a taken key throws
+- **Population:** Optional — an empty registry is normal
+- **Order:** `100` (display order, ascending)
+- **Declared by:** `Splicewire\Composition\Music\Augmentation\LoopStageRegistry`
+
+{/* registry-facts:end */}
+
+## The six stages
+
+The engine registers all six when the registry is built. Each pass of the loop runs them in this
+order:
+
+| stage | what it calls |
+|---|---|
+| `music.loop.enrich` | the `music21` runner environment's enrich step, which refines the intent (and runs again between passes) |
+| `music.loop.oneshot` | the first source in [`music.oneshot`](music.oneshot), through a cache keyed by the source |
+| `music.loop.arrange` | the tenant's arranger at `music.render.midi`, which the host provides, never this package |
+| `music.loop.sample` | the engine's sampler, which plays the arranged MIDI through the one-shot bank |
+| `music.loop.mix` | the `mir` runner environment's mix step |
+| `music.loop.measure` | [`music.measure`](music.measure), which judges the mix against the MIDI grid |
+
+The loop resolves each stage by its full name through the registry index. Before any stage runs, it
+refuses a plan that is missing `arrange`, `sample` or `measure`, or whose index can't resolve them,
+naming every missing stage. Without that check a run with no arranger would come back as a clean but
+empty outcome.
+
+## Changing what a stage does
+
+Duplicate names are **rejected** here, so you can't swap a stage by registering over it. Change the
+capability the stage calls instead:
+
+- bind the tenant's arranger at `music.render.midi` in your host's own `music` registry;
+- add a sample source to [`music.oneshot`](music.oneshot);
+- add or replace a measurer in [`music.measure`](music.measure);
+- provision the `music21` and `mir` runner environments, which the enrich, sample, mix and measure
+  steps need.
+
+Each stage reads its service when it runs, never when the registry is built. Describing the registry
+therefore constructs no runner or measurer.
+
+## Related registries
+
+- [`music.oneshot`](music.oneshot) and [`music.measure`](music.measure) are the two capabilities in
+  this package that the loop calls.
+- [The music engine cluster](music) shows how the ten registries fit together.
+
+## Going deeper
+
+The engine's [README](https://github.com/splicewire/laravel-composition-engine-music#augmentation-loop)
+covers the pass, the policy thresholds and the run directory. The registry's source is
+[`LoopStageRegistry`](https://github.com/splicewire/laravel-composition-engine-music/blob/main/src/Augmentation/LoopStageRegistry.php),
+and the loop is
+[`MusicAugmentationLoop`](https://github.com/splicewire/laravel-composition-engine-music/blob/main/src/Augmentation/MusicAugmentationLoop.php).

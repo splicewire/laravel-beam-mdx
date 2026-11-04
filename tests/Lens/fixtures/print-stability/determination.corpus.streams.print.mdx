@@ -1,0 +1,70 @@
+# Corpus streams
+
+`determination.corpus.streams` holds the **corpus streams** of the tenant whose context is active. A governed-corpus Conduit connects a compliance corpus (concepts, rules, statuses, synonyms and evidence) and projects it as typed streams, one per kind. This registry is where those streams land. The tenant's corpus is the union of the streams from every enabled corpus Conduit.
+
+{/* registry-facts:start — generated from the #[IsRegistry] declaration; regenerate it, do not edit between these markers. */}
+
+- **Root:** `determination.corpus.streams`
+- **Entries:** `Splicewire\Tower\Determination\Corpus\CorpusStream`
+- **Duplicate keys:** Admit — every registration is kept; a single-entry read of a shared key refuses as ambiguous
+- **Population:** Optional — an empty registry is normal
+- **Order:** `72` (display order, ascending)
+- **Declared by:** `Splicewire\Tower\Determination\Corpus\CorpusStreamRegistry`
+
+{/* registry-facts:end */}
+
+## What an entry is
+
+The declaration names `CorpusStream` as the entry type, but each entry is one **Conduit's** contribution: its `ConduitRef` together with the list of `CorpusStream`s it projects. The key is that Conduit's id, lower-cased. A `CorpusStream` is a type label (`concepts`, `rules`, `statuses`, `synonyms` or `evidence`) over the Conduit's corpus source. It wraps that source's read contract and never rewrites it.
+
+Three reads cover the uses:
+
+- `all()` is the union of every registered Conduit's streams, in registration order;
+- `ofType(CorpusStreamType::Rules)` is one kind of stream across all of them;
+- `forConduit($providerKey, $alias)` is a single Conduit's streams, addressed by provider and alias.
+
+Tower doesn't call these reads from a request path yet, only from its tests. They are where a feature that needs the tenant's connected corpus reads it.
+
+The duplicate policy is **admit**: registering the same Conduit again appends a second entry rather than replacing the first. `all()` then includes both, and `forConduit()` returns the first match.
+
+## This registry is per tenant
+
+**The registry object lives for the whole process. Its entries belong to one tenant at a time.** Tower's `ConduitHydrator` fills it each time a tenant's context starts and forgets the entries, by registrant, when the context ends. The tenancy bootstrapper calls the hydrator on every switch: per request, and per job on a queue worker. Outside a tenant context the registry is empty.
+
+Only **enabled** Conduits contribute. A disabled Conduit's streams are simply absent from the union, and never promoted from somewhere else.
+
+For anyone registering into it:
+
+- **Contribute through a Conduit provider.** A provider that projects streams implements `ProjectsCorpusStreams` and yields a contribution for this registry from `contributions()`, the way Tower's `governed-corpus` provider does:
+
+  ```php
+  use Splicewire\Tower\Conduit\Projection\RegistryContribution;
+  use Splicewire\Tower\Determination\Corpus\CorpusStreamRegistry;
+
+  public function contributions(ConduitRef $conduit): iterable
+  {
+      yield RegistryContribution::lazy(
+          app(CorpusStreamRegistry::class),
+          strtolower($conduit->conduitId),
+          fn () => ['ref' => $conduit, 'streams' => $this->corpusStreams($conduit)],
+      );
+  }
+  ```
+
+  The lazy form builds the streams only if the Conduit is enabled.
+
+- **Don't call `register()` at boot.** A direct registration is outside the hydrator's teardown, so it would stay in the registry for every tenant on that worker.
+
+- **Don't keep what you read.** The streams you read belong to the current tenant. Don't hold them in a singleton or a static past the request or job.
+
+- **Keep it a singleton.** The hydrator forgets entries in the instance it registered them into. A `scoped()` rebinding would hand the next tenant a fresh instance and leave the old entries unreachable rather than forgotten.
+
+## Related registries
+
+- [`retrieval.channels`](retrieval.channels) — its counterpart for search: the channels the hybrid search fuses.
+- [`conduit`](conduit) — how Conduits project into per-tenant registries.
+- [The determination registries](determination) — this registry and its sibling.
+
+## Going deeper
+
+[Popcorn registries](/beam/docs/foundations/registries) explains roots, keys and duplicate policies. The registry's source is [`CorpusStreamRegistry`](https://github.com/splicewire/tower/blob/main/src/Determination/Corpus/CorpusStreamRegistry.php), and its contributor is [`CorpusConduitProvider`](https://github.com/splicewire/tower/blob/main/src/Conduit/Corpus/CorpusConduitProvider.php).

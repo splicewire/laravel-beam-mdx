@@ -1,0 +1,88 @@
+---
+title: Set up a Beam app
+segment: setup
+navOrder: 10
+publishedDate: 2026-10-26
+excerpt: Clone the starter, run its setup script, and read the doctor.
+---
+
+# Set up a Beam app
+
+Standing up a Beam app is three moves: clone the starter, run its `setup` script, and run the doctor. The doctor (`php artisan splicewire:beam:doctor`) is the gate: it checks your install against what Beam needs — the packages and settings Beam depends on, and the schema-to-render chain that turns one schema into a form, a stored record and a rendered page — and says, one line per check, what holds and what doesn't.
+
+If you haven't yet, read [Beam on Laravel](/beam/docs/laravel) for what you're standing up and why the pieces are shaped the way they are.
+
+## Stand it up
+
+<Steps>
+
+<Step title="Clone the starter">
+
+Start from the Beam starter, a Laravel + Inertia + React app with the schema-to-render chain already wired in. It isn't on Packagist yet, so clone it.
+
+<Terminal title="bash">
+
+```bash
+git clone https://github.com/splicewire/laravel-beam-starter my-beam-app
+cd my-beam-app
+```
+
+</Terminal>
+
+</Step>
+
+<Step title="Run the starter's setup script">
+
+The starter ships one Composer script that installs and configures everything, PHP and JavaScript alike. Run it rather than its steps one by one; `composer.json`'s `scripts.setup` lists what it does.
+
+<Terminal title="bash">
+
+```bash
+composer setup
+```
+
+</Terminal>
+
+</Step>
+
+<Step title="Run the doctor">
+
+The doctor checks the packages and settings Beam depends on, and that every link in the schema-to-render chain resolves. Run it and read the output.
+
+<Terminal title="bash">
+
+```bash
+php artisan splicewire:beam:doctor
+```
+
+</Terminal>
+
+</Step>
+
+</Steps>
+
+## Reading the doctor
+
+The doctor prints one line per check: `INFO` when it holds, `WARN` for something you can defer, `ERROR` when a link can't resolve yet. Fix every `ERROR` before moving on. These lines are from a fresh starter install:
+
+<DoctorOutput raw={`INFO  stability configured: minimum-stability=dev and prefer-stable=true.
+INFO  first-party closure declared in repositories: Every required first-party package has a repository entry.
+INFO  beam manifest present and valid: BEAM.md declares site \`laravel-beam-starter\` (variant \`inertia-react\`).
+INFO  schema round-trip: data-schemas installed — sample Data round-tripped to a JSON-Schema object (name, count).
+WARN  marquee site-mode gate wired: rushing/laravel-marquee is not required — this site cannot deploy in \`soon\` and flip live with \`php artisan marquee:mode live\`.`} />
+
+In plain terms: _first-party closure_ means every Splicewire package the app requires has a `repositories` entry in `composer.json`, so Composer can find it; the _beam manifest_ is the `BEAM.md` file that names your site and its variant; and the _marquee site-mode_ warning only means the optional `rushing/laravel-marquee` package, which lets a site deploy in a `soon` mode and flip live later, isn't installed.
+
+<Callout type="tip">
+
+A green-ish doctor — all `INFO`, at most benign `WARN`s — is the signal you're clear to configure and run. Treat it as the contract: if the doctor is happy, the app will boot.
+
+</Callout>
+
+## Next
+
+- [Configure your Beam app](/beam/docs/laravel/setup/config) — your `.env` and the dev server.
+
+## Build a declared resource
+
+Follow [Build a service desk](/beam/docs/laravel/service-desk) for the complete supplied-candidate development setup, generated client and team-owned create/list/read-only detail journey. Its local checkpoints are separate from the general starter installation above.

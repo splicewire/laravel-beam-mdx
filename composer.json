@@ -51,7 +51,8 @@
     "prefer-stable": true,
     "scripts": {
         "pint": "@php -d memory_limit=512M vendor/bin/pint",
-        "test": "@php vendor/bin/phpunit"
+        "test": "@php vendor/bin/phpunit",
+        "lens-print:regenerate": "@php tests/Lens/PrintStability/regenerate.php"
     },
     "repositories": [
         {

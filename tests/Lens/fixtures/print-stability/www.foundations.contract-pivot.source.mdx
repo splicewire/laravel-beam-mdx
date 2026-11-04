@@ -1,0 +1,62 @@
+---
+title: The contract pivot
+segment: contract-pivot
+navOrder: 20
+publishedDate: 2026-11-03
+excerpt: Backend and frontend never agree by hand; they agree on a published data contract.
+---
+
+# The contract pivot
+
+Most web stacks keep backend and frontend in agreement by discipline: someone updates the API,
+someone updates the types, someone updates the form, and a code review hopes they match. This
+family pivots on a different idea: **the two sides agree on a published contract, generated from
+one source, so they cannot drift**.
+
+```
+  typed data class                    the one source of truth
+        │
+        ├──→ JSON Schema              validates the server
+        ├──→ TypeScript types         types the client
+        └──→ schema-driven form       draws and validates the UI
+```
+
+## Producers and consumers
+
+A stack stands in one of two relations to the contract:
+
+- A **producer** sets it. Laravel is the first producer: typed data classes project JSON Schema
+  and TypeScript, and whatever those classes say *is* the contract.
+- A **consumer** generates its types *from* the published contract. A Next.js client, a mobile
+  app, or any future non-Laravel stack reads the schemas and derives its own types, inverting the
+  direction without changing the agreement.
+
+Either way the contract is the fixed point. Frameworks and stacks are swappable around it.
+
+## The response envelope
+
+Every response travels in one envelope — success flag, status, message, data, errors, metadata and
+paging fields — and the client reads it through a type derived from that same shape. Shape
+agreement is by construction, not by convention: when the envelope changes on the producer side,
+the consumer's type regenerates rather than silently diverging.
+
+## Schema-driven forms
+
+The same projection that validates the server also draws the form. Any form whose fields are
+backed by a contract data class renders through the schema substrate, driven by that class's JSON
+Schema. A bespoke-looking form is a widget or theme override inside the substrate — the schema
+stays load-bearing for validation on both sides. Hand-rolling a form outside the substrate is the
+one anti-pattern this architecture exists to close, because it reopens the drift the contract
+removed. (A trivial single-field capture, like an email waitlist box, is a submission rather than
+a form and may stay plain.)
+
+A data class backing the contract plays one of two roles, and it helps to name which: a
+**persistence** class hydrates to and from your own models, while a **transport** class is purely
+a wire shape with no local model. Some are both.
+
+## Where to go deeper
+
+[The schema loop](/beam/docs/laravel/schema-loop) walks the full circle — schema to form to record
+to renderer — with a guide per station. [Particles](/beam/docs/foundations/particles) shows how
+Beam turns the same declared classes into API surface, and
+[the Schemastud docs](https://schemastud.io/docs) cover the substrate on its own, without Beam.

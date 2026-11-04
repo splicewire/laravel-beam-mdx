@@ -1,0 +1,65 @@
+---
+title: Particles
+segment: particles
+navOrder: 30
+publishedDate: 2026-11-03
+excerpt: Every data shape that crosses a boundary is declared once, and everything downstream is generated from it.
+---
+
+# Particles
+
+A **particle** is Beam's unit of declared API surface: a **resource** (rows you list, read and
+write) or an **operation** (a named action you invoke). What makes it a particle is not the route
+or the controller — it is that every data shape crossing the wire is declared up front as a typed
+data class, so the rest of the stack can be generated from the declaration instead of inferred
+from code.
+
+That is the single invariant the whole framework leans on:
+
+> Every boundary-crossing data shape is a declared data class, which feeds into or becomes a
+> particle.
+
+"Boundary-crossing" means any edge of your application: an HTTP endpoint, an MCP tool, the props a
+page receives, the output of a command. If a shape crosses, it is declared; nothing on the wire is
+an anonymous array.
+
+## The three declaration sites
+
+There are exactly three places a shape is declared, and no fourth:
+
+1. **`#[ParticleResource]`** on a data class declares a resource: a `backing` (what the rows
+   actually are — usually an Eloquent model), a read projection (`data`) and a write shape
+   (`input`).
+2. **`#[ParticleOp]`** on a data class declares an operation: its `input` and `output` shapes.
+   A streaming operation declares its output as a map of event names to shapes, so even a live
+   stream has a typed contract per event.
+3. **The controller trio** — `#[ResponseFromData]`, `#[RequestFromData]` and
+   `#[StreamsFromData]` on a controller method — covers surfaces that are not particles, such as
+   a bespoke page or endpoint, so those shapes are declared too.
+
+Everything downstream reads the declaration: routes mount from it, the JSON Schema and TypeScript
+types project from it, [Frame](/beam/docs/laravel/frame) draws list, form and detail screens from
+it, and the API reference describes it. One declaration, many consumers — the same
+[contract pivot](/beam/docs/foundations/contract-pivot) applied to API surface.
+
+## Start from the generator
+
+Don't write the attribute by hand. Two commands scaffold a correct declaration:
+
+```bash
+php artisan splicewire:beam:make:particle-resource
+php artisan splicewire:beam:make:particle-op
+```
+
+Each emits the attribute with every shape slot spelled out explicitly — input, output, ability —
+along with the classes those slots name and the one mount line to paste into your route file. The
+slots are written out even where a default exists, so a declaration always reads as a set of
+decisions rather than a set of omissions.
+
+## Going deeper
+
+[Build a service desk](/beam/docs/laravel/service-desk) declares a real resource end to end —
+model, input, policy, mount and UI. [The declarations reference](/beam/docs/laravel/reference)
+maps which package owns what, and the full rules live in
+[the particle doctrine](https://github.com/splicewire/laravel-beam/blob/main/docs/agents/particle-doctrine.md),
+the contract document the framework itself is held to.

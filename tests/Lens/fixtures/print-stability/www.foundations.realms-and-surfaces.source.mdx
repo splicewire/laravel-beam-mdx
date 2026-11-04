@@ -1,0 +1,56 @@
+---
+title: Realms and surfaces
+segment: realms-and-surfaces
+navOrder: 40
+publishedDate: 2026-11-03
+excerpt: Who lands where, and the packaged shells that render it — a host writes config, not chrome.
+---
+
+# Realms and surfaces
+
+A Beam application is experienced by different kinds of people in different areas: a visitor on
+the public site, a customer in their account, a staff member in the back office. Beam names the
+two halves of that picture.
+
+A **realm** is an area of the application a kind of person lands in — the public site, the
+signed-in account area, the operator back office. Which realms exist, and who may enter each, is
+decided on the server. The client only renders what the server projected: a realm you are not
+entitled to is absent from the data it receives, not hidden by the interface.
+
+A **surface** is the packaged shell that renders a realm. Beam ships the shells as reusable
+packages, and a host composes them:
+
+| Surface | What it renders |
+| --- | --- |
+| Public site chrome | the marketing realm — header, nav, footer, page frame |
+| Account shell | the signed-in realm — sidebar, nav, user and plan slots |
+| Operator front-end | the back-office realm — the cross-customer admin screens |
+| Desktop shell | a windowed composer that launches each realm as an app |
+| In-place editor | the page itself becoming editable, over the same page body |
+| Realm dashboard | a realm's landing page of cards, one per resource in the realm |
+
+The surfaces compose: the desktop shell can frame the others as windows, and the editor mounts
+inside a page of any realm.
+
+## The host writes config, not machinery
+
+Standing up a front end means importing the surfaces you need and supplying configuration: your
+brand's theme tokens, your nav data, your link component, the realm-to-surface bindings. The
+canvas, window manager, sidebar and site nav stay inside the packages. If setting up a shell ever
+seems to require copying generic machinery into your application, that is a packaging defect to
+report, not a step to perform.
+
+The realm dashboard shows how far this goes: a resource appears on its realm's dashboard simply by
+being listed in that realm. No page, no route, no controller — the card, its figures and its link
+come from the resource's own declaration.
+
+Two habits keep a host on the right side of the line. Brand look lives in the theme tokens you
+pass, never in colors a package bakes — the same one-place branding seam described in
+[branding a Beam app](/beam/docs/laravel/branding-beam-app). And navigation, app rosters and
+account menus are projections of server data, never arrays hardcoded in the client.
+
+## Going deeper
+
+[The UI catalogue](/beam/docs/laravel/ui-catalogue) shows the shipped components, and
+[build a service desk](/beam/docs/laravel/service-desk) stands a realm up end to end around one
+real resource.

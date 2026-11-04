@@ -1,0 +1,35 @@
+# Popcorn registries
+
+A framework assembled from many packages needs one answer to a recurring question: how does one package offer an extension point, and another package — or your application — plug something into it, without anybody editing anybody else's code?
+
+In this family the answer is the **registry**, from [`rushing/laravel-popcorn`](https://github.com/stephenr85/laravel-popcorn). A registry is a named collection of entries. Its name is a dotted **root** — `beam.install.steps`, `beam.workflows.types`, `schemas.strategies` — and each entry inside it has a **key** and a typed value. One class owns each root and declares it with a PHP attribute, `#[IsRegistry]`, which states the root's name, what type its entries must be, and what happens when two registrations use the same key.
+
+```
+beam.install.steps              ← the root, declared once by Beam
+├─ accounts.migrate             ← entries, registered by whichever
+├─ tenancy.bootstrap               packages are installed
+└─ docs.seed-pages
+```
+
+## Declaring and registering are different acts
+
+The package that **declares** a registry defines the extension point and reads the entries. The packages that **register** into it are the plug-ins. Beam declares `beam.install.steps` and its installer reads them in order; the accounts, tenancy and docs packages each drop their own steps in during boot. Your application can register entries the same way the packages do — there is no separate "user" mechanism.
+
+What a duplicate key means is the owner's declared choice. Most registries let a later registration **supersede** an earlier one, and that is deliberately the override seam: a host replaces a package's default entry by registering its own under the same key. A registry can instead reject duplicates, or admit all of them, when its contract needs that.
+
+## One index, baked for production
+
+Every declared registry in an installed application is listed in a single index, so the whole surface is inspectable:
+
+```bash
+php artisan popcorn:registries        # every root this application has, described
+php artisan popcorn:registries:cache  # bake the index — run on deploy
+```
+
+Production resolves registries from the baked index; the cache command belongs in your deploy steps next to `config:cache`. Which roots exist depends on which packages are installed, so two applications of different shapes will list different sets.
+
+## Why these docs lean on registries
+
+A registry root is a stable, machine-checked name, and it already maps the places where packages meet. These docs use the roots as addresses: the integration reference is organized by registry, and a root's name is where you look it up. Not every seam is a registry, though — container bindings, route mounts and events are their own mechanisms, and [what is not a registry](/beam/docs/foundations/not-a-registry) draws that line.
+
+Popcorn itself is a little broader than registries: it also ships invocable capabilities and strategy ladders, covered in [its README](https://github.com/stephenr85/laravel-popcorn).
