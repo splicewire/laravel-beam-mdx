@@ -26,5 +26,5 @@
     "determination.corpus.streams": {"origin": "splicewire/tower:docs/registries/determination.corpus.streams.mdx", "at": "2f993045"},
     "beam.workflows": {"origin": "splicewire/laravel-beam-workflows:docs/registries/beam.workflows.mdx", "at": "fc200c7"},
     "commerce": {"origin": "rushing/laravel-commerce:docs/registries/commerce.mdx", "at": "c28724d"},
-    "beam.notifications.recipient_kinds": {"origin": "splicewire/laravel-beam-notifications:docs/registries/beam.notifications.recipient_kinds.mdx", "at": "a5618a4"}
+    "beam.notifications.recipient-kinds": {"origin": "splicewire/laravel-beam-notifications:docs/registries/beam.notifications.recipient-kinds.mdx", "at": "2c20ca0"}
 }
