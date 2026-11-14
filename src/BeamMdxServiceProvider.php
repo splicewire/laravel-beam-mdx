@@ -37,6 +37,14 @@ class BeamMdxServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        // Foundation hosts use Laravel's loader; Beam-composed hosts retain the allocator's sole ownership.
+        $allocator = 'Splicewire\\Beam\\Localization\\TextNamespaces';
+        if ($this->app->bound($allocator) && $this->app->make($allocator)->namespaceOf('splicewire/laravel-beam-mdx') !== null) {
+            $this->app->make($allocator)->ownerOfPackage('splicewire/laravel-beam-mdx');
+        } else {
+            $this->loadTranslationsFrom(__DIR__.'/../lang', 'beam-mdx');
+        }
+
         // The catch-all content/essay route macros (Route::beamMdxShow / beamMdxPage).
         ContentRoutes::registerMacros();
 

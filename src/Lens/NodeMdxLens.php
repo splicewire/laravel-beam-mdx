@@ -2,7 +2,7 @@
 
 namespace Splicewire\Beam\Mdx\Lens;
 
-use Illuminate\Validation\ValidationException;
+use Splicewire\Beam\Mdx\MdxError;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
@@ -26,7 +26,7 @@ final class NodeMdxLens implements MdxLens
         $decoded = $this->run(['op' => 'read', 'body' => $body, 'context' => (object) $context]);
 
         if (! is_array($decoded['doc'] ?? null) || ! (is_string($decoded['meta'] ?? null) || ($decoded['meta'] ?? null) === null)) {
-            throw ValidationException::withMessages(['source' => 'the MDX lens returned no doc.']);
+            throw MdxValidationException::for('source', MdxError::LensNoDocument);
         }
 
         /** @var array<int, array<string, mixed>> $doc */
@@ -40,7 +40,7 @@ final class NodeMdxLens implements MdxLens
         $decoded = $this->run(['op' => 'print', 'doc' => $doc]);
 
         if (! is_string($decoded['mdx'] ?? null)) {
-            throw ValidationException::withMessages(['source' => 'the MDX lens printed nothing.']);
+            throw MdxValidationException::for('source', MdxError::LensPrintedNothing);
         }
 
         return $decoded['mdx'];
@@ -55,7 +55,7 @@ final class NodeMdxLens implements MdxLens
         $script = $this->script ?? __DIR__.'/../../resources/lens/mdx-lens.mjs';
 
         if (! is_file($script)) {
-            throw ValidationException::withMessages(['source' => "the MDX lens script is missing at [{$script}]."]);
+            throw MdxValidationException::for('source', MdxError::LensScriptMissing, ['script' => $script]);
         }
 
         $root = $this->workingDirectory ?? base_path();
@@ -72,13 +72,13 @@ final class NodeMdxLens implements MdxLens
             $process->mustRun();
         } catch (ProcessFailedException $e) {
             // stderr carries the lens's own diagnostic (MDX that is not a page, a missing host dependency).
-            throw ValidationException::withMessages(['source' => trim($process->getErrorOutput()) ?: $e->getMessage()]);
+            throw MdxValidationException::for('source', MdxError::LensFailureDetail, ['detail' => trim($process->getErrorOutput()) ?: $e->getMessage()]);
         }
 
         $decoded = json_decode($process->getOutput(), true);
 
         if (! is_array($decoded)) {
-            throw ValidationException::withMessages(['source' => 'the MDX lens returned no JSON.']);
+            throw MdxValidationException::for('source', MdxError::LensNoJson);
         }
 
         /** @var array<string, mixed> $decoded */
